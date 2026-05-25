@@ -54,6 +54,7 @@ services:
         condition: service_healthy
     networks:
       - ms_users_net
+      - sanos-y-salvos-net
     restart: unless-stopped
 
 # ── Volúmenes y red ──────────────────────────────────────────────────────────
@@ -64,3 +65,5 @@ volumes:
 networks:
   ms_users_net:
     driver: bridge
+  sanos-y-salvos-net:
+    external: true
