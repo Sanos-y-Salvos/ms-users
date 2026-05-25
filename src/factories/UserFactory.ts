@@ -5,7 +5,6 @@ import { User, RolUsuario, TipoUsuario } from '../models/User';
 import { Ciudadano } from '../models/Ciudadano';
 import { Institucion, TipoInstitucion } from '../models/Institucion';
 import { validarDigitoVerificador } from '../utils/validarDigitoVerificador';
-import { emitUserRegistered } from '../events/event-emitter.service';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const ciudadanoRepo = () => AppDataSource.getRepository(Ciudadano);
@@ -62,29 +61,6 @@ export const UserFactory = {
       direccion: datos.direccion,
     });
     await ciudadanoRepo().save(ciudadano);
-
-    const name = `${datos.primer_nombre} ${datos.apellido_paterno}`.trim();
-    // Evento async — si falla, queda en cola de Bull y se reintenta cuando vuelva el broker.
-    // ms-users es fuente de verdad: el registro local NO se revierte si el evento falla.
-    await emitUserRegistered({
-      userId: credentialId,
-      email: datos.email,
-      passwordHash,
-      role: RolUsuario.CIUDADANO,
-      permissions: [],
-      name,
-      avatarUrl: datos.foto_perfil,
-      tipo: 'ciudadano',
-      telefono: datos.telefono,
-      region: datos.region,
-      comuna: datos.comuna,
-      primer_nombre: datos.primer_nombre,
-      segundo_nombre: datos.segundo_nombre,
-      apellido_paterno: datos.apellido_paterno,
-      apellido_materno: datos.apellido_materno,
-      run: datos.run,
-      direccion: datos.direccion,
-    });
 
     return { user, ciudadano };
   },
@@ -143,26 +119,6 @@ export const UserFactory = {
       direccion: datos.direccion,
     });
     await institucionRepo().save(institucion);
-
-    // Evento async — si falla, queda en cola de Bull y se reintenta cuando vuelva el broker.
-    // ms-users es fuente de verdad: el registro local NO se revierte si el evento falla.
-    await emitUserRegistered({
-      userId: credentialId,
-      email: datos.email,
-      passwordHash,
-      role: rol,
-      permissions: [],
-      name: datos.nombre_institucion,
-      avatarUrl: datos.foto_perfil,
-      tipo: 'institucion',
-      telefono: datos.telefono,
-      region: datos.region,
-      comuna: datos.comuna,
-      razon_social: datos.razon_social,
-      rut: datos.rut,
-      tipo_institucion: datos.tipo_institucion,
-      direccion: datos.direccion,
-    });
 
     return { user, institucion };
   },
