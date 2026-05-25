@@ -3,7 +3,6 @@ import { AppDataSource } from '../config/db';
 import { User } from '../models/User';
 import { PasswordResetOtp } from '../models/PasswordResetOtp';
 import { sendOtpEmail } from '../utils/mailer';
-import { emitUserPasswordChanged } from '../events/event-emitter.service';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const otpRepo = () => AppDataSource.getRepository(PasswordResetOtp);
@@ -28,9 +27,6 @@ export const changePassword = async (
 
   const password_hash = await bcrypt.hash(newPassword, 10);
   await userRepo().update({ credential_id: credentialId }, { password_hash });
-
-  // Sincronizar la réplica en ms-auth vía broker
-  await emitUserPasswordChanged(credentialId, password_hash);
 
   return { message: 'Contraseña actualizada correctamente' };
 };
@@ -78,9 +74,6 @@ export const resetPassword = async (
 
   const password_hash = await bcrypt.hash(newPassword, 10);
   await userRepo().update({ email }, { password_hash });
-
-  // Sincronizar la réplica en ms-auth vía broker
-  await emitUserPasswordChanged(user.credential_id, password_hash);
 
   return { message: 'Contraseña actualizada correctamente' };
 };

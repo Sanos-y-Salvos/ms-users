@@ -4,7 +4,6 @@ import { Ciudadano } from '../models/Ciudadano';
 import { Institucion, TipoInstitucion } from '../models/Institucion';
 import { UserFactory } from '../factories/UserFactory';
 import cloudinary from '../config/cloudinary';
-import { emitUserUpdated, emitUserDeleted } from '../events/event-emitter.service';
 
 const userRepo = () => AppDataSource.getRepository(User);
 
@@ -116,39 +115,13 @@ export const actualizarPerfil = async (credentialId: string, datos: any, archivo
     }
   }
 
-  // Sincronizar nombre/avatar cacheados en ms-auth vía evento
   const updatedUser = await userRepo().findOne({ where: { credential_id: credentialId }, relations: ['ciudadano', 'institucion'] });
-  if (updatedUser) {
-    const eventData: Parameters<typeof emitUserUpdated>[0] = { userId: credentialId };
-    if (datosUser.foto_perfil) eventData.avatarUrl = datosUser.foto_perfil;
-    if (datosUser.telefono !== undefined) eventData.telefono = datosUser.telefono;
-    if (datosUser.region !== undefined) eventData.region = datosUser.region;
-    if (datosUser.comuna !== undefined) eventData.comuna = datosUser.comuna;
-    if (updatedUser.tipo === 'ciudadano' && updatedUser.ciudadano) {
-      const c = updatedUser.ciudadano;
-      eventData.name = `${c.primer_nombre} ${c.apellido_paterno}`.trim();
-      eventData.primer_nombre = c.primer_nombre;
-      eventData.segundo_nombre = c.segundo_nombre;
-      eventData.apellido_paterno = c.apellido_paterno;
-      eventData.apellido_materno = c.apellido_materno;
-      eventData.direccion = c.direccion;
-    }
-    if (updatedUser.tipo === 'institucion' && updatedUser.institucion) {
-      eventData.name = updatedUser.institucion.nombre_institucion;
-      eventData.razon_social = updatedUser.institucion.razon_social;
-      eventData.direccion = updatedUser.institucion.direccion;
-    }
-    await emitUserUpdated(eventData);
-  }
-
   return updatedUser;
 };
 
 // RF-10 — Soft delete de cuenta propia
 export const desactivarCuenta = async (credentialId: string) => {
   await userRepo().update({ credential_id: credentialId }, { is_active: false });
-  // Notificar a ms-auth para que invalide la credencial en su BD local
-  await emitUserDeleted(credentialId);
 };
 
 // Admin — Listar usuarios
@@ -188,10 +161,6 @@ export const verUsuario = async (userId: string, callerRole?: string) => {
 export const cambiarEstadoUsuario = async (userId: string, is_active: boolean, callerRole?: string) => {
   const user = await verUsuario(userId, callerRole);
   await userRepo().update({ id: userId }, { is_active });
-  await emitUserUpdated({
-    userId: user.credential_id,
-    status: is_active ? 'active' : 'inactive',
-  });
   user.is_active = is_active;
   return user;
 };
@@ -205,10 +174,6 @@ export const cambiarRolUsuario = async (userId: string, rol: string, callerRole?
   }
   const user = await verUsuario(userId, callerRole);
   await userRepo().update({ id: userId }, { rol: rol as RolUsuario });
-  await emitUserUpdated({
-    userId: user.credential_id,
-    role: rol,
-  });
   user.rol = rol as RolUsuario;
   return user;
 };
@@ -250,25 +215,5 @@ export const editarDatosUsuario = async (userId: string, datos: any, callerRole?
   }
 
   const updated = await verUsuario(userId, callerRole);
-  const eventData: Parameters<typeof emitUserUpdated>[0] = { userId: user.credential_id };
-  if (datosUser.telefono !== undefined) eventData.telefono = datosUser.telefono;
-  if (datosUser.region !== undefined) eventData.region = datosUser.region;
-  if (datosUser.comuna !== undefined) eventData.comuna = datosUser.comuna;
-  if (updated.tipo === 'ciudadano' && updated.ciudadano) {
-    const c = updated.ciudadano;
-    eventData.name = `${c.primer_nombre} ${c.apellido_paterno}`.trim();
-    eventData.primer_nombre = c.primer_nombre;
-    eventData.segundo_nombre = c.segundo_nombre;
-    eventData.apellido_paterno = c.apellido_paterno;
-    eventData.apellido_materno = c.apellido_materno;
-    eventData.direccion = c.direccion;
-  }
-  if (updated.tipo === 'institucion' && updated.institucion) {
-    eventData.name = updated.institucion.nombre_institucion;
-    eventData.razon_social = updated.institucion.razon_social;
-    eventData.direccion = updated.institucion.direccion;
-  }
-  await emitUserUpdated(eventData);
-
   return updated;
 };

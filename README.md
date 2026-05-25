@@ -1,6 +1,6 @@
 # MS-Users — Sanos y Salvos
 
-Microservicio de **gestión de usuarios** de la plataforma **Sanos y Salvos**. Es la **fuente de verdad** de todos los datos del usuario: perfil, credenciales (incluida la contraseña), tipo (ciudadano/institución), roles y estado. Cuando algo cambia aquí, se publica un evento al broker para que `ms-auth` actualice su réplica de credenciales.
+Microservicio de **gestión de usuarios** de la plataforma **Sanos y Salvos**. Es la **fuente de verdad** de todos los datos del usuario: perfil, credenciales (incluida la contraseña), tipo (ciudadano/institución), roles y estado. Puede operar de forma **completamente independiente** — solo requiere PostgreSQL.
 
 ---
 
@@ -15,7 +15,6 @@ Microservicio de **gestión de usuarios** de la plataforma **Sanos y Salvos**. E
 | Soft-delete de cuenta | — |
 | Administración de usuarios (admin) | — |
 | Subir foto de perfil a Cloudinary | — |
-| Publicar eventos de sincronización | — |
 
 ---
 
@@ -28,7 +27,6 @@ Microservicio de **gestión de usuarios** de la plataforma **Sanos y Salvos**. E
 | TypeScript 5 | Tipado estático |
 | PostgreSQL 16 | Persistencia |
 | TypeORM 0.3 | ORM y sincronización de esquema |
-| Bull + Redis | Cola de eventos hacia ms-auth |
 | Multer | Recepción de archivos en memoria |
 | Cloudinary | Almacenamiento de fotos de perfil |
 | Nodemailer | Envío de OTP por correo Gmail |
@@ -43,17 +41,14 @@ Microservicio de **gestión de usuarios** de la plataforma **Sanos y Salvos**. E
 
 ### Patrón de arquitectura
 
-**Arquitectura en capas + Event-Driven (productor)**
+**Arquitectura en capas**
 
 ```
 src/routes/ → src/controllers/ → src/services/ → src/models/
-                                        │
-                                        ▼
-                              src/events/event-emitter (publica al broker)
 ```
 
-- **Capas**: cada capa solo depende de la inmediatamente inferior.
-- **Event-Driven**: tras una operación de escritura, `ms-users` publica un evento al broker. `ms-auth` lo consume asíncronamente para mantener su réplica sincronizada.
+- Cada capa solo depende de la inmediatamente inferior.
+- Toda la lógica de negocio y persistencia es local — no hay dependencias externas en tiempo de ejecución salvo PostgreSQL.
 
 ### Patrones de diseño
 
@@ -61,18 +56,7 @@ src/routes/ → src/controllers/ → src/services/ → src/models/
 |---|---|---|
 | **Repository** (via TypeORM) | `AppDataSource.getRepository(Entidad)` | Encapsular acceso a BD |
 | **Factory Method** | `src/factories/UserFactory.ts` | Crear ciudadanos e instituciones uniformemente |
-| **Singleton** | `src/config/db.ts`, `src/config/redis.ts`, `src/config/cloudinary.ts`, `src/utils/mailer.ts` | Instancias únicas reutilizables |
-
-### Eventos publicados al broker
-
-| Evento | Cuando se emite | Payload incluye |
-|---|---|---|
-| `user.registered` | Al crear ciudadano o institución | userId, email, passwordHash, role, perfil |
-| `user.updated` | Al editar perfil | userId, campos modificados |
-| `user.deleted` | Al desactivar cuenta | userId |
-| `user.password.changed` | Al cambiar contraseña (autenticado u OTP) | userId, passwordHash |
-
-> Estos eventos son consumidos por `ms-auth` para actualizar su réplica local.
+| **Singleton** | `src/config/db.ts`, `src/config/cloudinary.ts`, `src/utils/mailer.ts` | Instancias únicas reutilizables |
 
 ---
 
@@ -80,7 +64,6 @@ src/routes/ → src/controllers/ → src/services/ → src/models/
 
 - Node.js 20+
 - PostgreSQL 16+
-- Redis (broker)
 - Cuenta en [Cloudinary](https://cloudinary.com) (plan gratuito suficiente)
 - Cuenta Gmail con [contraseña de aplicación](https://myaccount.google.com/apppasswords) habilitada (para OTP)
 
@@ -100,15 +83,8 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=ms_users
 
-# Redis broker (cola compartida con ms-auth)
-REDIS_BROKER_URL=redis://localhost:6379
-
-# JWT — debe coincidir con ms-auth
+# JWT — debe coincidir con ms-auth si se usa integración
 JWT_SECRET=tu_secreto_minimo_64_caracteres
-
-# API key interna — debe coincidir con ms-auth
-MS_AUTH_URL=http://localhost:3001
-INTERNAL_API_KEY=clave_compartida_con_ms_auth
 
 # Cloudinary
 CLOUDINARY_CLOUD_NAME=tu_cloud_name
@@ -122,7 +98,7 @@ GMAIL_APP_PASSWORD=tu_app_password_gmail
 NODE_ENV=development
 ```
 
-> `JWT_SECRET` e `INTERNAL_API_KEY` deben ser **idénticos** a los de `ms-auth`.
+> `JWT_SECRET` debe coincidir con el de `ms-auth` si ambos servicios están corriendo juntos.
 
 ---
 
@@ -148,8 +124,6 @@ La base de datos se crea automáticamente al iniciar si no existe (`ensureDataba
 cd ms-users
 docker compose up -d
 ```
-
-> Requiere que el `broker` esté corriendo previamente.
 
 ---
 
@@ -478,7 +452,7 @@ Content-Type: application/json
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `id` | UUID (PK) | Identificador único |
-| `credential_id` | UUID único | Mismo UUID replicado a `ms-auth.credentials.id` |
+| `credential_id` | UUID único | Identificador externo del usuario (usado por ms-auth si está integrado) |
 | `email` | string único | Correo del usuario |
 | `password_hash` | string | Hash bcrypt — **fuente de verdad** |
 | `telefono` | string | Teléfono |
@@ -559,13 +533,13 @@ ms-users/
 │   ├── config/
 │   │   ├── cloudinary.ts           # Configuración Cloudinary (Singleton)
 │   │   ├── db.ts                   # Conexión PostgreSQL + TypeORM (Singleton)
-│   │   ├── redis.ts                # Cola Bull sobre Redis (Singleton)
+│   │   ├── redis.ts                # Definición de cola Bull (no utilizada en modo standalone)
 │   │   └── swagger.ts              # Configuración OpenAPI 3.0
 │   ├── controllers/
 │   │   ├── user.controller.ts      # CRUD de usuarios
 │   │   └── password.controller.ts  # Cambio y recuperación de contraseña
 │   ├── events/
-│   │   └── event-emitter.service.ts # Publicación de eventos al broker
+│   │   └── event-emitter.service.ts # Definición de eventos (no utilizada en modo standalone)
 │   ├── factories/
 │   │   └── UserFactory.ts          # Factory: ciudadanos e instituciones
 │   ├── middlewares/
@@ -605,7 +579,7 @@ ms-users/
 | `npm run dev` | Hot reload con nodemon + ts-node |
 | `npm run build` | Compila TypeScript a `/dist` |
 | `npm start` | Ejecuta la versión compilada |
-| `docker compose up -d` | Levanta ms-users + PostgreSQL (requiere broker) |
+| `docker compose up -d` | Levanta ms-users + PostgreSQL |
 | `docker compose down -v` | Detiene y limpia datos |
 
 ---
@@ -617,12 +591,8 @@ ms-users/
 2. ms-users valida campos (email, RUN, password, etc.)
 3. ms-users hashea password con bcrypt
 4. ms-users guarda User + Ciudadano en su PostgreSQL (con password_hash local)
-5. ms-users publica evento user.registered al broker
-6. ms-auth consume el evento y crea Credential réplica con el mismo passwordHash
-7. Cliente recibe 201 con datos del usuario creado
+5. Cliente recibe 201 con datos del usuario creado
 ```
-
-> Si el broker está caído, el registro **igual se persiste** localmente. El evento queda pendiente y `ms-auth` lo procesará cuando recupere conexión (Bull retiene la cola en Redis).
 
 ---
 
@@ -633,18 +603,14 @@ ms-users/
 2. ms-users verifica currentPassword contra password_hash local
 3. ms-users hashea la newPassword
 4. ms-users actualiza User.password_hash en su PostgreSQL
-5. ms-users publica evento user.password.changed al broker
-6. ms-auth actualiza Credential.password_hash en su réplica
-7. Cliente recibe 200
+5. Cliente recibe 200
 ```
 
 ---
 
 ## Crear el primer superadmin (con Docker corriendo)
 
-> En v2.0.0 `ms-users` es la **fuente de verdad** del rol. Como no existe ningún admin todavía para usar el endpoint `/admin/usuarios/:id/rol`, hay que actualizar las dos BD manualmente y limpiar la caché de Redis. Ejecuta los pasos **en orden**.
-
-> Requiere los stacks corriendo: `broker` → `ms-auth` → `ms-users` → `frontend`.
+> Como no existe ningún admin todavía para usar el endpoint `/admin/usuarios/:id/rol`, hay que actualizar la BD manualmente. Solo requiere `ms-users` corriendo.
 
 ### Paso 1 — Registrar el usuario
 
@@ -664,9 +630,7 @@ curl -X POST http://localhost:3002/api/users/register/ciudadano \
   }'
 ```
 
-Espera 1–2 segundos para que el evento `user.registered` se procese en `ms-auth`.
-
-### Paso 2 — Promover a superadmin en ms-users (fuente de verdad)
+### Paso 2 — Promover a superadmin en la BD
 
 ```bash
 docker exec ms-users-db psql -U postgres -d ms_users \
@@ -675,30 +639,11 @@ docker exec ms-users-db psql -U postgres -d ms_users \
 
 Debe responder `UPDATE 1`.
 
-### Paso 3 — Sincronizar la réplica en ms-auth
+### Paso 3 — Verificar
 
-```bash
-docker exec ms-auth-db psql -U postgres -d ms_auth \
-  -c "UPDATE credentials SET role='superadmin' WHERE email='fe.ruizr@duocuc.cl';"
-```
+Inicia sesión en `http://localhost` (o directamente en `ms-auth` si está disponible). Deberías ver opciones de administración.
 
-Debe responder `UPDATE 1`.
-
-### Paso 4 — Limpiar la caché Redis de ms-auth
-
-```bash
-docker exec ms-auth-redis redis-cli FLUSHDB
-```
-
-Debe responder `OK`. Esto fuerza a que el próximo `/me` se reconstruya desde la BD con el rol actualizado.
-
-### Paso 5 — Verificar
-
-Inicia sesión en `http://localhost` con `fe.ruizr@duocuc.cl` / `123456q`. Deberías ver opciones de administración.
-
-> **A futuro:** una vez tengas un superadmin, los siguientes cambios de rol se hacen vía API (`PATCH /api/users/admin/usuarios/:id/rol`), que emite automáticamente el evento `user.updated` al broker y mantiene todo sincronizado sin tocar BD a mano.
-
-> El próximo login funcionará con la nueva contraseña porque `ms-auth` la sincronizó.
+> **A futuro:** una vez tengas un superadmin, los siguientes cambios de rol se hacen vía API (`PATCH /api/users/admin/usuarios/:id/rol`).
 
 ---
 
@@ -710,4 +655,3 @@ Inicia sesión en `http://localhost` con `fe.ruizr@duocuc.cl` / `123456q`. Deber
 | `RUN inválido` | Dígito verificador incorrecto | Validar con módulo 11 antes de enviar |
 | `Token requerido` | Falta header `Authorization` | Agregar `Bearer <accessToken>` |
 | OTP no llega | GMAIL_APP_PASSWORD incorrecto o spam | Revisar carpeta de spam, regenerar app password |
-| Cambio de contraseña no se refleja en login | ms-auth consumer no procesó el evento | Verificar logs de ms-auth: `[consumer] user.password.changed recibido` |
