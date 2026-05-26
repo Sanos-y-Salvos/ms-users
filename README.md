@@ -233,7 +233,7 @@ Content-Type: application/json
   "region": "08",
   "comuna": "Concepción",
   "nombre_institucion": "Veterinaria San Jorge",
-  "razon_social": "San Jorge Ltda.",
+  "razon_social": "San Jorge Ltda",
   "rut": "76.354.771-K",
   "tipo_institucion": "veterinaria",
   "direccion": "Av. Los Carrera 123"
