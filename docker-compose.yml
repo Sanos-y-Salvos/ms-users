@@ -66,4 +66,4 @@ networks:
   ms_users_net:
     driver: bridge
   sanos-y-salvos-net:
-    driver: bridge
+    external: true
