@@ -60,6 +60,44 @@ src/routes/ → src/controllers/ → src/services/ → src/models/
 
 ---
 
+## Estrategia de Branching: Git Flow
+
+### ¿Qué es Git Flow?
+
+Git Flow es una estrategia de branching para Git que define un modelo estricto de ramas diseñado para gestionar versiones de software de forma ordenada. Establece roles específicos para cada rama y cómo deben interactuar entre sí, permitiendo que múltiples desarrolladores trabajen en paralelo sin interferir en el código estable.
+
+### Ramas utilizadas
+
+```bash
+# inicializar git flow
+git flow init
+```
+
+#### Ramas principales (permanentes)
+ 
+```bash
+git checkout -b main        # Código en producción, estable
+git checkout -b develop     # Integración continua de features
+```
+ 
+#### Ramas de soporte (temporales)
+ 
+```bash
+# Nueva funcionalidad
+git checkout -b feature/ms-clientes develop
+ 
+# Preparación de versión
+git checkout -b release/1.0.0 develop
+ 
+# Corrección urgente en producción
+git checkout -b hotfix/fix-auth main
+```
+### ¿Por qué se usó Git Flow en este proyecto?
+ 
+Se adoptó Git Flow como estrategia de branching con el objetivo de prepararse para trabajar en equipos grandes y entornos profesionales. En proyectos reales con múltiples desarrolladores, es fundamental contar con una convención clara que evite conflictos, permita desarrollar features en paralelo y proteja el código en producción. Git Flow establece esas reglas desde el inicio, generando buenos hábitos de colaboración y control de versiones desde etapas tempranas del desarrollo.
+
+---
+
 ## Requisitos previos
 
 - Node.js 20+
