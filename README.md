@@ -60,6 +60,44 @@ src/routes/ → src/controllers/ → src/services/ → src/models/
 
 ---
 
+## Estrategia de Branching: Git Flow
+
+### ¿Qué es Git Flow?
+
+Git Flow es una estrategia de branching para Git que define un modelo estricto de ramas diseñado para gestionar versiones de software de forma ordenada. Establece roles específicos para cada rama y cómo deben interactuar entre sí, permitiendo que múltiples desarrolladores trabajen en paralelo sin interferir en el código estable.
+
+### Ramas utilizadas
+
+```bash
+# inicializar git flow
+git flow init
+```
+
+#### Ramas principales (permanentes)
+ 
+```bash
+git checkout -b main        # Código en producción, estable
+git checkout -b develop     # Integración continua de features
+```
+ 
+#### Ramas de soporte (temporales)
+ 
+```bash
+# Nueva funcionalidad
+git checkout -b feature/ms-clientes develop
+ 
+# Preparación de versión
+git checkout -b release/1.0.0 develop
+ 
+# Corrección urgente en producción
+git checkout -b hotfix/fix-auth main
+```
+### ¿Por qué se usó Git Flow en este proyecto?
+ 
+Se adoptó Git Flow como estrategia de branching con el objetivo de prepararse para trabajar en equipos grandes y entornos profesionales. En proyectos reales con múltiples desarrolladores, es fundamental contar con una convención clara que evite conflictos, permita desarrollar features en paralelo y proteja el código en producción. Git Flow establece esas reglas desde el inicio, generando buenos hábitos de colaboración y control de versiones desde etapas tempranas del desarrollo.
+
+---
+
 ## Requisitos previos
 
 - Node.js 20+
@@ -83,7 +121,7 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=ms_users
 
-# JWT — debe coincidir con ms-auth si se usa integración
+# JWT 
 JWT_SECRET=tu_secreto_minimo_64_caracteres
 
 # Cloudinary
@@ -97,8 +135,6 @@ GMAIL_APP_PASSWORD=tu_app_password_gmail
 
 NODE_ENV=development
 ```
-
-> `JWT_SECRET` debe coincidir con el de `ms-auth` si ambos servicios están corriendo juntos.
 
 ---
 
@@ -183,11 +219,7 @@ Crea una **environment** con estas variables:
 | Variable | Valor inicial |
 |---|---|
 | `baseUrl` | `http://localhost:3002` |
-| `authUrl` | `http://localhost:3001` |
-| `accessToken` | _(se completa tras login en ms-auth)_ |
 | `userId` | _(se completa cuando lo necesites)_ |
-
-> El login se hace en `ms-auth` (`POST {{authUrl}}/api/auth/login`). Copia el `accessToken` recibido y úsalo en los endpoints autenticados de ms-users.
 
 ---
 
@@ -242,75 +274,6 @@ Content-Type: application/json
 
 ---
 
-### 3. Login (en ms-auth, incluido aquí por completitud del flujo)
-
-```http
-POST {{authUrl}}/api/auth/login
-Content-Type: application/json
-```
-
-```json
-{
-  "email": "fe.ruizr@duocuc.cl",
-  "password": "123456q"
-}
-```
-
-> Copia el `accessToken` recibido y guárdalo en la environment de Postman.
-
----
-
-### 4. Ver perfil propio
-
-```http
-GET {{baseUrl}}/api/users/perfil
-Authorization: Bearer {{accessToken}}
-```
-
-_(Sin body)_
-
----
-
-### 5. Actualizar perfil
-
-```http
-PATCH {{baseUrl}}/api/users/perfil
-Authorization: Bearer {{accessToken}}
-Content-Type: application/json
-```
-
-```json
-{
-  "telefono": "987654321",
-  "region": "13",
-  "comuna": "Santiago",
-  "direccion": "Av. Providencia 1234",
-  "primer_nombre": "Felipe",
-  "apellido_paterno": "Ruiz"
-}
-```
-
-> Todos los campos son opcionales — envía solo los que quieras cambiar. Para subir nueva foto usa **form-data** con `foto_perfil` como `file`.
-
----
-
-### 6. Cambiar contraseña (autenticado)
-
-```http
-PATCH {{baseUrl}}/api/users/perfil/password
-Authorization: Bearer {{accessToken}}
-Content-Type: application/json
-```
-
-```json
-{
-  "currentPassword": "123456q",
-  "newPassword": "nuevaPass123"
-}
-```
-
----
-
 ### 7. Solicitar OTP para recuperar contraseña
 
 ```http
@@ -340,93 +303,6 @@ Content-Type: application/json
   "email": "fe.ruizr@duocuc.cl",
   "code": "123456",
   "newPassword": "nuevaPass123"
-}
-```
-
----
-
-### 9. Desactivar cuenta propia (soft delete)
-
-```http
-DELETE {{baseUrl}}/api/users/perfil
-Authorization: Bearer {{accessToken}}
-```
-
-_(Sin body)_
-
----
-
-### 10. Admin — Listar usuarios
-
-```http
-GET {{baseUrl}}/api/users/admin/usuarios?rol=ciudadano&is_active=true
-Authorization: Bearer {{accessToken}}
-```
-
-**Query params (opcionales):**
-
-| Param | Valores |
-|---|---|
-| `rol` | `ciudadano`, `veterinaria`, `municipalidad`, `moderador`, `administrador`, `superadmin` |
-| `is_active` | `true`, `false` |
-
----
-
-### 11. Admin — Ver usuario por ID
-
-```http
-GET {{baseUrl}}/api/users/admin/usuarios/{{userId}}
-Authorization: Bearer {{accessToken}}
-```
-
----
-
-### 12. Admin — Cambiar estado (activar/desactivar)
-
-```http
-PATCH {{baseUrl}}/api/users/admin/usuarios/{{userId}}/estado
-Authorization: Bearer {{accessToken}}
-Content-Type: application/json
-```
-
-```json
-{
-  "is_active": false
-}
-```
-
----
-
-### 13. Admin — Cambiar rol
-
-```http
-PATCH {{baseUrl}}/api/users/admin/usuarios/{{userId}}/rol
-Authorization: Bearer {{accessToken}}
-Content-Type: application/json
-```
-
-```json
-{
-  "rol": "moderador"
-}
-```
-
----
-
-### 14. Admin — Editar datos del usuario
-
-```http
-PATCH {{baseUrl}}/api/users/admin/usuarios/{{userId}}/datos
-Authorization: Bearer {{accessToken}}
-Content-Type: application/json
-```
-
-```json
-{
-  "telefono": "987654321",
-  "region": "13",
-  "comuna": "Santiago",
-  "primer_nombre": "Felipe"
 }
 ```
 
@@ -596,18 +472,6 @@ ms-users/
 
 ---
 
-## Flujo de cambio de contraseña
-
-```
-1. Cliente → PATCH /api/users/perfil/password (Bearer Token)
-2. ms-users verifica currentPassword contra password_hash local
-3. ms-users hashea la newPassword
-4. ms-users actualiza User.password_hash en su PostgreSQL
-5. Cliente recibe 200
-```
-
----
-
 ## Crear el primer superadmin (con Docker corriendo)
 
 > Como no existe ningún admin todavía para usar el endpoint `/admin/usuarios/:id/rol`, hay que actualizar la BD manualmente. Solo requiere `ms-users` corriendo.
@@ -653,5 +517,4 @@ Inicia sesión en `http://localhost` (o directamente en `ms-auth` si está dispo
 |---|---|---|
 | `El correo ya está registrado` | Email duplicado en PG | Usar otro email o reactivar la cuenta |
 | `RUN inválido` | Dígito verificador incorrecto | Validar con módulo 11 antes de enviar |
-| `Token requerido` | Falta header `Authorization` | Agregar `Bearer <accessToken>` |
 | OTP no llega | GMAIL_APP_PASSWORD incorrecto o spam | Revisar carpeta de spam, regenerar app password |
