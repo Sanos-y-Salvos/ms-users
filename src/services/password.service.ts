@@ -1,11 +1,7 @@
 import bcrypt from 'bcrypt';
-import { AppDataSource } from '../config/db';
-import { User } from '../models/User';
-import { PasswordResetOtp } from '../models/PasswordResetOtp';
+import { UserRepository } from '../repositories/user.repository';
+import { PasswordResetOtpRepository } from '../repositories/passwordResetOtp.repository';
 import { sendOtpEmail } from '../utils/mailer';
-
-const userRepo = () => AppDataSource.getRepository(User);
-const otpRepo = () => AppDataSource.getRepository(PasswordResetOtp);
 
 const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutos
 
@@ -19,14 +15,14 @@ export const changePassword = async (
   currentPassword: string,
   newPassword: string,
 ): Promise<{ message: string }> => {
-  const user = await userRepo().findOne({ where: { credential_id: credentialId, is_active: true } });
+  const user = await UserRepository.findByCredentialId(credentialId, { activeOnly: true });
   if (!user) throw new Error('Usuario no encontrado');
 
   const valid = await bcrypt.compare(currentPassword, user.password_hash);
   if (!valid) throw Object.assign(new Error('La contraseña actual es incorrecta'), { status: 400 });
 
   const password_hash = await bcrypt.hash(newPassword, 10);
-  await userRepo().update({ credential_id: credentialId }, { password_hash });
+  await UserRepository.updateByCredentialId(credentialId, { password_hash });
 
   return { message: 'Contraseña actualizada correctamente' };
 };
@@ -34,17 +30,17 @@ export const changePassword = async (
 // Paso 1 — Solicitar OTP (respuesta genérica por seguridad)
 export const forgotPassword = async (email: string): Promise<{ message: string }> => {
   email = email.toLowerCase();
-  const user = await userRepo().findOne({ where: { email, is_active: true } });
+  const user = await UserRepository.findByEmail(email, { activeOnly: true });
 
   if (user) {
-    await otpRepo().delete({ email });
-    const otp = otpRepo().create({
+    await PasswordResetOtpRepository.deleteByEmail(email);
+    const otp = PasswordResetOtpRepository.create({
       email,
       code: generateOtpCode(),
       expires_at: new Date(Date.now() + OTP_TTL_MS),
       used: false,
     });
-    await otpRepo().save(otp);
+    await PasswordResetOtpRepository.save(otp);
     await sendOtpEmail(email, otp.code);
   }
 
@@ -59,21 +55,21 @@ export const resetPassword = async (
 ): Promise<{ message: string }> => {
   email = email.toLowerCase();
 
-  const otp = await otpRepo().findOne({ where: { email, code, used: false } });
+  const otp = await PasswordResetOtpRepository.findValid(email, code);
   if (!otp) throw Object.assign(new Error('Código inválido'), { status: 400 });
 
   if (otp.expires_at <= new Date()) {
-    await otpRepo().delete({ id: otp.id });
+    await PasswordResetOtpRepository.deleteById(otp.id);
     throw Object.assign(new Error('Código expirado'), { status: 400 });
   }
 
-  await otpRepo().delete({ id: otp.id });
+  await PasswordResetOtpRepository.deleteById(otp.id);
 
-  const user = await userRepo().findOne({ where: { email, is_active: true } });
+  const user = await UserRepository.findByEmail(email, { activeOnly: true });
   if (!user) throw Object.assign(new Error('Usuario no encontrado'), { status: 404 });
 
   const password_hash = await bcrypt.hash(newPassword, 10);
-  await userRepo().update({ email }, { password_hash });
+  await UserRepository.updateByEmail(email, { password_hash });
 
   return { message: 'Contraseña actualizada correctamente' };
 };

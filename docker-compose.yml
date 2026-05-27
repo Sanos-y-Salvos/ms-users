@@ -67,3 +67,4 @@ networks:
     driver: bridge
   sanos-y-salvos-net:
     external: true
+    name: ms_mascotas_sanos-y-salvos-net

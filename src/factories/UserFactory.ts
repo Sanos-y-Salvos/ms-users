@@ -1,14 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
-import { AppDataSource } from '../config/db';
-import { User, RolUsuario, TipoUsuario } from '../models/User';
-import { Ciudadano } from '../models/Ciudadano';
-import { Institucion, TipoInstitucion } from '../models/Institucion';
+import { RolUsuario, TipoUsuario } from '../models/User';
+import { TipoInstitucion } from '../models/Institucion';
+import { UserRepository } from '../repositories/user.repository';
+import { CiudadanoRepository } from '../repositories/ciudadano.repository';
+import { InstitucionRepository } from '../repositories/institucion.repository';
 import { validarDigitoVerificador } from '../utils/validarDigitoVerificador';
-
-const userRepo = () => AppDataSource.getRepository(User);
-const ciudadanoRepo = () => AppDataSource.getRepository(Ciudadano);
-const institucionRepo = () => AppDataSource.getRepository(Institucion);
 
 // Factory Method — crea el tipo correcto según el tipo de registro
 export const UserFactory = {
@@ -32,7 +29,7 @@ export const UserFactory = {
     const credentialId = uuidv4();
     const passwordHash = await bcrypt.hash(datos.password, 10);
 
-    const user = userRepo().create({
+    const user = UserRepository.create({
       credential_id: credentialId,
       email: datos.email.toLowerCase(),
       password_hash: passwordHash,
@@ -45,13 +42,13 @@ export const UserFactory = {
     });
 
     try {
-      await userRepo().save(user);
+      await UserRepository.save(user);
     } catch (e: any) {
       if (e.code === '23505') throw new Error('El correo ya está registrado');
       throw e;
     }
 
-    const ciudadano = ciudadanoRepo().create({
+    const ciudadano = CiudadanoRepository.create({
       user,
       primer_nombre: datos.primer_nombre,
       segundo_nombre: datos.segundo_nombre,
@@ -60,7 +57,7 @@ export const UserFactory = {
       run: datos.run,
       direccion: datos.direccion,
     });
-    await ciudadanoRepo().save(ciudadano);
+    await CiudadanoRepository.save(ciudadano);
 
     return { user, ciudadano };
   },
@@ -91,7 +88,7 @@ export const UserFactory = {
     const credentialId = uuidv4();
     const passwordHash = await bcrypt.hash(datos.password, 10);
 
-    const user = userRepo().create({
+    const user = UserRepository.create({
       credential_id: credentialId,
       email: datos.email.toLowerCase(),
       password_hash: passwordHash,
@@ -104,13 +101,13 @@ export const UserFactory = {
     });
 
     try {
-      await userRepo().save(user);
+      await UserRepository.save(user);
     } catch (e: any) {
       if (e.code === '23505') throw new Error('El correo ya está registrado');
       throw e;
     }
 
-    const institucion = institucionRepo().create({
+    const institucion = InstitucionRepository.create({
       user,
       nombre_institucion: datos.nombre_institucion,
       razon_social: datos.razon_social,
@@ -118,7 +115,7 @@ export const UserFactory = {
       tipo_institucion: datos.tipo_institucion,
       direccion: datos.direccion,
     });
-    await institucionRepo().save(institucion);
+    await InstitucionRepository.save(institucion);
 
     return { user, institucion };
   },
