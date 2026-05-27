@@ -1,6 +1,6 @@
 # MS-Users — Sanos y Salvos
 
-Microservicio de **gestión de usuarios** de la plataforma **Sanos y Salvos**. Es la **fuente de verdad** de todos los datos del usuario: perfil, credenciales (incluida la contraseña), tipo (ciudadano/institución), roles y estado. Puede operar de forma **completamente independiente** — solo requiere PostgreSQL.
+Microservicio de **gestión de usuarios** de la plataforma **Sanos y Salvos**. Es la **fuente de verdad** de todos los datos del usuario: ciudadano e institución. Puede operar de forma **completamente independiente** — solo requiere PostgreSQL.
 
 ---
 
@@ -44,18 +44,25 @@ Microservicio de **gestión de usuarios** de la plataforma **Sanos y Salvos**. E
 **Arquitectura en capas**
 
 ```
-src/routes/ → src/controllers/ → src/services/ → src/models/
+src/routes/ → src/controllers/ → src/services/ → src/repositories/ → src/models/
+                                       ↓
+                                 src/factories/   (composición de agregados)
+                                       ↓
+                                  src/events/     (emisión asíncrona)
 ```
 
 - Cada capa solo depende de la inmediatamente inferior.
+- La capa `repositories/` es la **única** que toca TypeORM (`AppDataSource.getRepository`). Services, controllers y factories acceden a la BD exclusivamente a través de ella.
+- `factories/` orquesta la creación de agregados (ej. `User` + `Ciudadano`) reutilizando los repositorios.
+- `events/` publica eventos de dominio hacia otros microservicios; no toca la BD.
 - Toda la lógica de negocio y persistencia es local — no hay dependencias externas en tiempo de ejecución salvo PostgreSQL.
 
 ### Patrones de diseño
 
 | Patrón | Ubicación | Propósito |
 |---|---|---|
-| **Repository** (via TypeORM) | `AppDataSource.getRepository(Entidad)` | Encapsular acceso a BD |
-| **Factory Method** | `src/factories/UserFactory.ts` | Crear ciudadanos e instituciones uniformemente |
+| **Repository** | `src/repositories/{user,ciudadano,institucion,passwordResetOtp}.repository.ts` | Capa independiente de acceso a datos. Encapsula TypeORM para que services y factories no dependan del ORM directamente. |
+| **Factory Method** | `src/factories/UserFactory.ts` | Crear ciudadanos e instituciones uniformemente, delegando la persistencia en los repositorios. |
 | **Singleton** | `src/config/db.ts`, `src/config/cloudinary.ts`, `src/utils/mailer.ts` | Instancias únicas reutilizables |
 
 ---
@@ -428,6 +435,11 @@ ms-users/
 │   │   ├── Institucion.ts
 │   │   ├── PasswordResetOtp.ts     # OTP para reset
 │   │   └── User.ts                 # Incluye password_hash (fuente de verdad)
+│   ├── repositories/                # Capa independiente de acceso a datos (única que usa TypeORM)
+│   │   ├── ciudadano.repository.ts
+│   │   ├── institucion.repository.ts
+│   │   ├── passwordResetOtp.repository.ts
+│   │   └── user.repository.ts
 │   ├── routes/
 │   │   └── user.routes.ts          # Rutas + Swagger inline
 │   ├── services/
@@ -463,13 +475,22 @@ ms-users/
 ## Flujo de registro completo
 
 ```
-1. Cliente → POST /api/users/register/ciudadano
-2. ms-users valida campos (email, RUN, password, etc.)
-3. ms-users hashea password con bcrypt
-4. ms-users guarda User + Ciudadano en su PostgreSQL (con password_hash local)
-5. Cliente recibe 201 con datos del usuario creado
+1. Cliente                → POST /api/users/register/ciudadano
+2. routes/user.routes     → enruta al controller
+3. controllers/user       → valida campos (email, RUN, password, etc.) y llama al service
+4. services/user.service  → (si hay foto) sube a Cloudinary; delega en UserFactory.crearCiudadano
+5. factories/UserFactory  → valida RUN (módulo 11), hashea password con bcrypt,
+                            genera credential_id (uuid) y arma las entidades
+6. repositories/user      → persiste el User en PostgreSQL
+7. repositories/ciudadano → persiste el Ciudadano vinculado al User
+8. Cliente                ← 201 con datos del usuario creado
 ```
 
+<<<<<<< HEAD
+> El mismo flujo aplica al registro de institución, sustituyendo `crearCiudadano` por `crearInstitucion` y `repositories/ciudadano` por `repositories/institucion`.
+
+=======
+>>>>>>> main
 ---
 
 ## Crear el primer superadmin (con Docker corriendo)

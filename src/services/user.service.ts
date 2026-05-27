@@ -1,11 +1,11 @@
-import { AppDataSource } from '../config/db';
 import { User, RolUsuario } from '../models/User';
 import { Ciudadano } from '../models/Ciudadano';
 import { Institucion, TipoInstitucion } from '../models/Institucion';
 import { UserFactory } from '../factories/UserFactory';
+import { UserRepository } from '../repositories/user.repository';
+import { CiudadanoRepository } from '../repositories/ciudadano.repository';
+import { InstitucionRepository } from '../repositories/institucion.repository';
 import cloudinary from '../config/cloudinary';
-
-const userRepo = () => AppDataSource.getRepository(User);
 
 // RF-05 — Registro ciudadano
 export const registrarCiudadano = async (datos: any, archivo?: Express.Multer.File) => {
@@ -51,17 +51,14 @@ export const registrarInstitucion = async (datos: any, archivo?: Express.Multer.
 
 // RF-06 — Ver perfil
 export const obtenerPerfil = async (credentialId: string) => {
-  const user = await userRepo().findOne({
-    where: { credential_id: credentialId, is_active: true },
-    relations: ['ciudadano', 'institucion'],
-  });
+  const user = await UserRepository.findByCredentialId(credentialId, { activeOnly: true, withRelations: true });
   if (!user) throw new Error('Usuario no encontrado');
   return user;
 };
 
 // RF-08 — Actualizar datos
 export const actualizarPerfil = async (credentialId: string, datos: any, archivo?: Express.Multer.File) => {
-  const user = await userRepo().findOne({ where: { credential_id: credentialId }, relations: ['ciudadano', 'institucion'] });
+  const user = await UserRepository.findByCredentialId(credentialId, { withRelations: true });
   if (!user) throw new Error('Usuario no encontrado');
 
   const { telefono, region, comuna, primer_nombre, segundo_nombre, apellido_paterno, apellido_materno, direccion, nombre_institucion, razon_social } = datos;
@@ -90,7 +87,7 @@ export const actualizarPerfil = async (credentialId: string, datos: any, archivo
   }
 
   if (Object.keys(datosUser).length > 0) {
-    await userRepo().update({ credential_id: credentialId }, datosUser);
+    await UserRepository.updateByCredentialId(credentialId, datosUser);
   }
 
   if (user.tipo === 'ciudadano' && user.ciudadano) {
@@ -101,7 +98,7 @@ export const actualizarPerfil = async (credentialId: string, datos: any, archivo
     if (apellido_materno !== undefined) datosCiudadano.apellido_materno = apellido_materno;
     if (direccion !== undefined) datosCiudadano.direccion = direccion;
     if (Object.keys(datosCiudadano).length > 0) {
-      await AppDataSource.getRepository(Ciudadano).update({ id: user.ciudadano.id }, datosCiudadano);
+      await CiudadanoRepository.updateById(user.ciudadano.id, datosCiudadano);
     }
   }
 
@@ -111,17 +108,17 @@ export const actualizarPerfil = async (credentialId: string, datos: any, archivo
     if (razon_social !== undefined) datosInstitucion.razon_social = razon_social;
     if (direccion !== undefined) datosInstitucion.direccion = direccion;
     if (Object.keys(datosInstitucion).length > 0) {
-      await AppDataSource.getRepository(Institucion).update({ id: user.institucion.id }, datosInstitucion);
+      await InstitucionRepository.updateById(user.institucion.id, datosInstitucion);
     }
   }
 
-  const updatedUser = await userRepo().findOne({ where: { credential_id: credentialId }, relations: ['ciudadano', 'institucion'] });
+  const updatedUser = await UserRepository.findByCredentialId(credentialId, { withRelations: true });
   return updatedUser;
 };
 
 // RF-10 — Soft delete de cuenta propia
 export const desactivarCuenta = async (credentialId: string) => {
-  await userRepo().update({ credential_id: credentialId }, { is_active: false });
+  await UserRepository.updateByCredentialId(credentialId, { is_active: false });
 };
 
 // Admin — Listar usuarios
@@ -130,11 +127,7 @@ export const listarUsuarios = async (filtros?: { rol?: string; is_active?: boole
   if (filtros?.rol) where.rol = filtros.rol;
   if (filtros?.is_active !== undefined) where.is_active = filtros.is_active;
 
-  const users = await userRepo().find({
-    where,
-    relations: ['ciudadano', 'institucion'],
-    order: { created_at: 'DESC' },
-  });
+  const users = await UserRepository.findAll(where);
 
   if (callerRole !== 'superadmin') {
     return users.filter(u => u.rol !== RolUsuario.SUPERADMIN);
@@ -144,10 +137,7 @@ export const listarUsuarios = async (filtros?: { rol?: string; is_active?: boole
 
 // Admin — Ver usuario
 export const verUsuario = async (userId: string, callerRole?: string) => {
-  const user = await userRepo().findOne({
-    where: { id: userId },
-    relations: ['ciudadano', 'institucion'],
-  });
+  const user = await UserRepository.findById(userId, { withRelations: true });
   if (!user) throw new Error('Usuario no encontrado');
   if (callerRole !== undefined && callerRole !== 'superadmin' && user.rol === RolUsuario.SUPERADMIN) {
     const err: any = new Error('Acceso denegado');
@@ -160,7 +150,7 @@ export const verUsuario = async (userId: string, callerRole?: string) => {
 // Admin — Cambiar estado (activo/inactivo)
 export const cambiarEstadoUsuario = async (userId: string, is_active: boolean, callerRole?: string) => {
   const user = await verUsuario(userId, callerRole);
-  await userRepo().update({ id: userId }, { is_active });
+  await UserRepository.updateById(userId, { is_active });
   user.is_active = is_active;
   return user;
 };
@@ -173,7 +163,7 @@ export const cambiarRolUsuario = async (userId: string, rol: string, callerRole?
     throw err;
   }
   const user = await verUsuario(userId, callerRole);
-  await userRepo().update({ id: userId }, { rol: rol as RolUsuario });
+  await UserRepository.updateById(userId, { rol: rol as RolUsuario });
   user.rol = rol as RolUsuario;
   return user;
 };
@@ -189,7 +179,7 @@ export const editarDatosUsuario = async (userId: string, datos: any, callerRole?
   if (region !== undefined) datosUser.region = region;
   if (comuna !== undefined) datosUser.comuna = comuna;
   if (Object.keys(datosUser).length > 0) {
-    await userRepo().update({ id: userId }, datosUser);
+    await UserRepository.updateById(userId, datosUser);
   }
 
   if (user.tipo === 'ciudadano' && user.ciudadano) {
@@ -200,7 +190,7 @@ export const editarDatosUsuario = async (userId: string, datos: any, callerRole?
     if (apellido_materno !== undefined) datosCiudadano.apellido_materno = apellido_materno;
     if (direccion !== undefined) datosCiudadano.direccion = direccion;
     if (Object.keys(datosCiudadano).length > 0) {
-      await AppDataSource.getRepository(Ciudadano).update({ id: user.ciudadano.id }, datosCiudadano);
+      await CiudadanoRepository.updateById(user.ciudadano.id, datosCiudadano);
     }
   }
 
@@ -210,7 +200,7 @@ export const editarDatosUsuario = async (userId: string, datos: any, callerRole?
     if (razon_social !== undefined) datosInstitucion.razon_social = razon_social;
     if (direccion !== undefined) datosInstitucion.direccion = direccion;
     if (Object.keys(datosInstitucion).length > 0) {
-      await AppDataSource.getRepository(Institucion).update({ id: user.institucion.id }, datosInstitucion);
+      await InstitucionRepository.updateById(user.institucion.id, datosInstitucion);
     }
   }
 
