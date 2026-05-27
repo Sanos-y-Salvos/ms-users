@@ -486,8 +486,11 @@ ms-users/
 8. Cliente                ← 201 con datos del usuario creado
 ```
 
+<<<<<<< HEAD
 > El mismo flujo aplica al registro de institución, sustituyendo `crearCiudadano` por `crearInstitucion` y `repositories/ciudadano` por `repositories/institucion`.
 
+=======
+>>>>>>> main
 ---
 
 ## Crear el primer superadmin (con Docker corriendo)
