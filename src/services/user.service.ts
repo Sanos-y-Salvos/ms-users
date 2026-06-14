@@ -2,8 +2,8 @@
 import { User, RolUsuario } from '../models/User';
 import { Ciudadano } from '../models/Ciudadano';
 import { Institucion, TipoInstitucion } from '../models/Institucion';
-// Factory que centraliza la creación de usuarios
-import { UserFactory } from '../factories/UserFactory';
+// Creators concretos del patrón Factory Method
+import { CiudadanoCreator, InstitucionCreator } from '../factories/UserFactory';
 // Repositorios
 import { UserRepository } from '../repositories/user.repository';
 import { CiudadanoRepository } from '../repositories/ciudadano.repository';
@@ -31,8 +31,9 @@ export const registrarCiudadano = async (datos: any, archivo?: Express.Multer.Fi
     foto_perfil = resultado;
   }
 
-  // Delega la creación a la factory con la URL de la foto
-  return UserFactory.crearCiudadano({ ...datos, foto_perfil });
+  // Delega al ConcreteCreator de ciudadano (template method `crear`)
+  const { user, entidad } = await new CiudadanoCreator().crear({ ...datos, foto_perfil });
+  return { user, ciudadano: entidad };
 };
 
 // RF-05 — Registro de institución (idéntico flujo de upload)
@@ -54,8 +55,13 @@ export const registrarInstitucion = async (datos: any, archivo?: Express.Multer.
     foto_perfil = resultado;
   }
 
-  // Delega a la factory, casteando el tipo_institucion al enum
-  return UserFactory.crearInstitucion({ ...datos, foto_perfil, tipo_institucion: datos.tipo_institucion as TipoInstitucion });
+  // Delega al ConcreteCreator de institución (template method `crear`)
+  const { user, entidad } = await new InstitucionCreator().crear({
+    ...datos,
+    foto_perfil,
+    tipo_institucion: datos.tipo_institucion as TipoInstitucion,
+  });
+  return { user, institucion: entidad };
 };
 
 // RF-06 — Devuelve el perfil del usuario autenticado con sus relaciones
