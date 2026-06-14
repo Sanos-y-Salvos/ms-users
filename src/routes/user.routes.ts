@@ -1,11 +1,17 @@
+// Router de Express
 import { Router } from 'express';
+// Middleware para manejar uploads multipart
 import multer from 'multer';
+// Controladores que reciben las requests
 import * as UserController from '../controllers/user.controller';
 import * as PasswordController from '../controllers/password.controller';
+// Middlewares de autenticación y autorización
 import { verifyToken } from '../middlewares/verifyToken';
 import { requireRole } from '../middlewares/requireRole';
 
+// Router de este módulo de rutas
 const router = Router();
+// Multer en memoria: deja el buffer disponible para subir a Cloudinary
 const upload = multer({ storage: multer.memoryStorage() });
 
 /**
@@ -38,6 +44,7 @@ const upload = multer({ storage: multer.memoryStorage() });
  *       401:
  *         description: Token requerido
  */
+// Cambiar contraseña: requiere JWT válido
 router.patch('/perfil/password', verifyToken, PasswordController.changePassword);
 
 /**
@@ -61,6 +68,7 @@ router.patch('/perfil/password', verifyToken, PasswordController.changePassword)
  *       200:
  *         description: Respuesta genérica (independiente de si el correo existe)
  */
+// Solicitar OTP: público (sin auth)
 router.post('/forgot-password', PasswordController.forgotPassword);
 
 /**
@@ -92,6 +100,7 @@ router.post('/forgot-password', PasswordController.forgotPassword);
  *       400:
  *         description: Código inválido o expirado
  */
+// Resetear contraseña con OTP: público
 router.patch('/reset-password', PasswordController.resetPassword);
 
 /**
@@ -150,6 +159,7 @@ router.patch('/reset-password', PasswordController.resetPassword);
  *       400:
  *         description: RUN inválido, correo ya registrado, o campos inválidos
  */
+// Registro de ciudadano: acepta foto_perfil opcional como multipart
 router.post('/register/ciudadano', upload.single('foto_perfil'), UserController.registrarCiudadano);
 
 /**
@@ -206,6 +216,7 @@ router.post('/register/ciudadano', upload.single('foto_perfil'), UserController.
  *       400:
  *         description: RUT inválido o correo ya registrado
  */
+// Registro de institución: acepta foto_perfil opcional
 router.post('/register/institucion', upload.single('foto_perfil'), UserController.registrarInstitucion);
 
 /**
@@ -276,8 +287,11 @@ router.post('/register/institucion', upload.single('foto_perfil'), UserControlle
  *       401:
  *         description: Token requerido
  */
+// Ver perfil propio
 router.get('/perfil', verifyToken, UserController.obtenerPerfil);
+// Actualizar perfil propio (con foto opcional)
 router.patch('/perfil', verifyToken, upload.single('foto_perfil'), UserController.actualizarPerfil);
+// Desactivar cuenta propia (soft delete)
 router.delete('/perfil', verifyToken, UserController.desactivarCuenta);
 
 
@@ -307,6 +321,7 @@ router.delete('/perfil', verifyToken, UserController.desactivarCuenta);
  *       401:
  *         description: Token requerido
  */
+// Listar usuarios: solo admin, superadmin o moderador
 router.get('/admin/usuarios', verifyToken, requireRole('administrador', 'superadmin', 'moderador'), UserController.listarUsuarios);
 
 /**
@@ -330,6 +345,7 @@ router.get('/admin/usuarios', verifyToken, requireRole('administrador', 'superad
  *       404:
  *         description: Usuario no encontrado
  */
+// Ver usuario por id: solo admin, superadmin o moderador
 router.get('/admin/usuarios/:id', verifyToken, requireRole('administrador', 'superadmin', 'moderador'), UserController.verUsuario);
 
 /**
@@ -363,6 +379,7 @@ router.get('/admin/usuarios/:id', verifyToken, requireRole('administrador', 'sup
  *       404:
  *         description: Usuario no encontrado
  */
+// Cambiar estado activo/inactivo: solo admin o superadmin
 router.patch('/admin/usuarios/:id/estado', verifyToken, requireRole('administrador', 'superadmin'), UserController.cambiarEstadoUsuario);
 
 /**
@@ -397,6 +414,7 @@ router.patch('/admin/usuarios/:id/estado', verifyToken, requireRole('administrad
  *       404:
  *         description: Usuario no encontrado
  */
+// Cambiar rol: solo admin o superadmin
 router.patch('/admin/usuarios/:id/rol', verifyToken, requireRole('administrador', 'superadmin'), UserController.cambiarRolUsuario);
 
 /**
@@ -446,6 +464,8 @@ router.patch('/admin/usuarios/:id/rol', verifyToken, requireRole('administrador'
  *       404:
  *         description: Usuario no encontrado
  */
+// Editar datos de un usuario: solo admin o superadmin
 router.patch('/admin/usuarios/:id/datos', verifyToken, requireRole('administrador', 'superadmin'), UserController.editarDatosUsuario);
 
+// Exporta el router para montarlo en app.ts
 export default router;

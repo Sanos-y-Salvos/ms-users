@@ -1,5 +1,7 @@
+// Cola Bull/Redis para publicar eventos de dominio
 import { userEventsQueue } from '../config/redis';
 
+// Payload del evento de registro de usuario
 export interface UserRegisteredPayload {
   event: 'user.registered';
   userId: string;
@@ -13,20 +15,21 @@ export interface UserRegisteredPayload {
   telefono: string;
   region: string;
   comuna: string;
-  // Ciudadano
+  // Campos específicos de ciudadano
   primer_nombre?: string;
   segundo_nombre?: string;
   apellido_paterno?: string;
   apellido_materno?: string;
   run?: string;
   direccion?: string;
-  // Institución
+  // Campos específicos de institución
   razon_social?: string;
   rut?: string;
   tipo_institucion?: string;
   timestamp: Date;
 }
 
+// Payload del evento de actualización de usuario
 export interface UserUpdatedPayload {
   event: 'user.updated';
   userId: string;
@@ -48,12 +51,14 @@ export interface UserUpdatedPayload {
   timestamp?: Date;
 }
 
+// Payload del evento de eliminación/desactivación
 export interface UserDeletedPayload {
   event: 'user.deleted';
   userId: string;
   timestamp: Date;
 }
 
+// Payload del evento de cambio de contraseña
 export interface UserPasswordChangedPayload {
   event: 'user.password.changed';
   userId: string;
@@ -61,18 +66,21 @@ export interface UserPasswordChangedPayload {
   timestamp: Date;
 }
 
+// Publica el evento user.registered en la cola
 export const emitUserRegistered = async (data: Omit<UserRegisteredPayload, 'event' | 'timestamp'>): Promise<void> => {
+  // Arma el payload con tipo y timestamp
   const payload: UserRegisteredPayload = { ...data, event: 'user.registered', timestamp: new Date() };
   try {
+    // Encola el job
     await userEventsQueue.add('user.registered', payload);
     console.log(`[event-emitter] user.registered emitido para userId=${data.userId}`);
   } catch (err: any) {
+    // No relanza: la escritura local ya fue exitosa; Redis debería ser HA en prod
     console.error(`[event-emitter] Falló emisión user.registered para userId=${data.userId}: ${err.message}`);
-    // No relanzar: la operación local (BD de ms-users) ya fue exitosa.
-    // El evento se perderá si Redis no está disponible; en producción Redis debe ser HA.
   }
 };
 
+// Publica el evento user.updated
 export const emitUserUpdated = async (data: Omit<UserUpdatedPayload, 'event' | 'timestamp'>): Promise<void> => {
   const payload: UserUpdatedPayload = { ...data, event: 'user.updated', timestamp: new Date() };
   try {
@@ -83,6 +91,7 @@ export const emitUserUpdated = async (data: Omit<UserUpdatedPayload, 'event' | '
   }
 };
 
+// Publica el evento user.deleted (soft delete)
 export const emitUserDeleted = async (userId: string): Promise<void> => {
   const payload: UserDeletedPayload = { userId, event: 'user.deleted', timestamp: new Date() };
   try {
@@ -93,7 +102,9 @@ export const emitUserDeleted = async (userId: string): Promise<void> => {
   }
 };
 
+// Publica el evento user.password.changed
 export const emitUserPasswordChanged = async (userId: string, passwordHash: string): Promise<void> => {
+  // Payload con userId, hash nuevo y timestamp
   const payload: UserPasswordChangedPayload = {
     userId,
     passwordHash,
