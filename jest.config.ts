@@ -1,6 +1,7 @@
 import type { Config } from 'jest';
 
 const config: Config = {
+  displayName: 'ms-users',
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/tests'],
