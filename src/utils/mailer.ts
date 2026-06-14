@@ -1,5 +1,7 @@
+// Cliente SMTP para envío de correos
 import nodemailer from 'nodemailer';
 
+// Transporte configurado con Gmail usando contraseña de aplicación
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -8,12 +10,15 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Envía un correo con el código OTP para recuperar contraseña
 export const sendOtpEmail = async (email: string, code: string): Promise<void> => {
   try {
+    // Envía el correo HTML al destinatario indicado
     await transporter.sendMail({
       from: `"Sanos y Salvos" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: 'Recuperación de contraseña — Sanos y Salvos',
+      // Plantilla HTML con el código OTP destacado
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
           <h2>Recuperar contraseña</h2>
@@ -27,6 +32,7 @@ export const sendOtpEmail = async (email: string, code: string): Promise<void> =
       `,
     });
   } catch (err: unknown) {
+    // Normaliza el mensaje y relanza un Error con contexto
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`Error al enviar el correo de recuperación: ${msg}`);
   }
