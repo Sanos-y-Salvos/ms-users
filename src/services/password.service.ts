@@ -5,6 +5,8 @@ import { UserRepository } from '../repositories/user.repository';
 import { PasswordResetOtpRepository } from '../repositories/passwordResetOtp.repository';
 // Envío de correos OTP
 import { sendOtpEmail } from '../utils/mailer';
+// Publicación de eventos de dominio hacia ms-auth vía RabbitMQ
+import { emitUserPasswordChanged } from '../events/event-emitter.service';
 
 // Tiempo de vida del OTP: 10 minutos en milisegundos
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -31,8 +33,8 @@ export const changePassword = async (
   // Hashea y persiste la nueva contraseña
   const password_hash = await bcrypt.hash(newPassword, 10);
   await UserRepository.updateByCredentialId(credentialId, { password_hash });
+  await emitUserPasswordChanged(credentialId, password_hash);
 
-  // Mensaje de confirmación al cliente
   return { message: 'Contraseña actualizada correctamente' };
 };
 
@@ -91,7 +93,7 @@ export const resetPassword = async (
   // Hashea y persiste la nueva contraseña
   const password_hash = await bcrypt.hash(newPassword, 10);
   await UserRepository.updateByEmail(email, { password_hash });
+  await emitUserPasswordChanged(user.credential_id, password_hash);
 
-  // Confirma al cliente
   return { message: 'Contraseña actualizada correctamente' };
 };

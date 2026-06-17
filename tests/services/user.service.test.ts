@@ -1,3 +1,9 @@
+jest.mock('../../src/events/event-emitter.service', () => ({
+  emitUserRegistered: jest.fn(async () => undefined),
+  emitUserUpdated: jest.fn(async () => undefined),
+  emitUserDeleted: jest.fn(async () => undefined),
+  emitUserPasswordChanged: jest.fn(async () => undefined),
+}));
 jest.mock('../../src/factories/UserFactory', () => ({
   CiudadanoCreator: jest.fn().mockImplementation(() => ({
     crear: jest.fn(async () => ({ user: { id: 'u1' }, entidad: { id: 'c1' } })),

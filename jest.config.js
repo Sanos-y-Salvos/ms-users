@@ -1,11 +1,11 @@
-import type { Config } from 'jest';
-
-const config: Config = {
+/** @type {import('jest').Config} */
+module.exports = {
   displayName: 'ms-users',
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/?(*.)+(spec|test).ts'],
+  collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/server.ts',
@@ -24,5 +24,3 @@ const config: Config = {
   resetMocks: false,
   restoreMocks: true,
 };
-
-export default config;
