@@ -10,6 +10,12 @@ import { CiudadanoRepository } from '../repositories/ciudadano.repository';
 import { InstitucionRepository } from '../repositories/institucion.repository';
 // Cliente de Cloudinary para subir/eliminar imágenes
 import cloudinary from '../config/cloudinary';
+// Publicación de eventos de dominio hacia ms-auth vía RabbitMQ
+import {
+  emitUserRegistered,
+  emitUserUpdated,
+  emitUserDeleted,
+} from '../events/event-emitter.service';
 
 // RF-05 — Registro de ciudadano (sube foto opcional y delega al factory)
 export const registrarCiudadano = async (datos: any, archivo?: Express.Multer.File) => {
@@ -33,6 +39,27 @@ export const registrarCiudadano = async (datos: any, archivo?: Express.Multer.Fi
 
   // Delega al ConcreteCreator de ciudadano (template method `crear`)
   const { user, entidad } = await new CiudadanoCreator().crear({ ...datos, foto_perfil });
+
+  await emitUserRegistered({
+    userId: user.credential_id,
+    email: user.email,
+    passwordHash: user.password_hash,
+    role: user.rol,
+    permissions: [],
+    name: `${entidad.primer_nombre} ${entidad.apellido_paterno}`,
+    tipo: 'ciudadano',
+    telefono: user.telefono,
+    region: user.region,
+    comuna: user.comuna,
+    foto_perfil: user.foto_perfil,
+    primer_nombre: entidad.primer_nombre,
+    segundo_nombre: entidad.segundo_nombre,
+    apellido_paterno: entidad.apellido_paterno,
+    apellido_materno: entidad.apellido_materno,
+    run: entidad.run,
+    direccion: entidad.direccion,
+  });
+
   return { user, ciudadano: entidad };
 };
 
@@ -61,6 +88,24 @@ export const registrarInstitucion = async (datos: any, archivo?: Express.Multer.
     foto_perfil,
     tipo_institucion: datos.tipo_institucion as TipoInstitucion,
   });
+
+  await emitUserRegistered({
+    userId: user.credential_id,
+    email: user.email,
+    passwordHash: user.password_hash,
+    role: user.rol,
+    permissions: [],
+    name: entidad.nombre_institucion,
+    tipo: 'institucion',
+    telefono: user.telefono,
+    region: user.region,
+    comuna: user.comuna,
+    foto_perfil: user.foto_perfil,
+    razon_social: entidad.razon_social,
+    rut: entidad.rut,
+    tipo_institucion: entidad.tipo_institucion,
+  });
+
   return { user, institucion: entidad };
 };
 
@@ -138,12 +183,29 @@ export const actualizarPerfil = async (credentialId: string, datos: any, archivo
 
   // Relee el usuario actualizado con sus relaciones para devolverlo
   const updatedUser = await UserRepository.findByCredentialId(credentialId, { withRelations: true });
+
+  await emitUserUpdated({
+    userId: credentialId,
+    telefono,
+    region,
+    comuna,
+    avatarUrl: datosUser.foto_perfil,
+    primer_nombre,
+    segundo_nombre,
+    apellido_paterno,
+    apellido_materno,
+    direccion,
+    razon_social,
+    name: nombre_institucion,
+  });
+
   return updatedUser;
 };
 
 // RF-10 — Desactiva la cuenta propia (soft delete)
 export const desactivarCuenta = async (credentialId: string) => {
   await UserRepository.updateByCredentialId(credentialId, { is_active: false });
+  await emitUserDeleted(credentialId);
 };
 
 // Admin — Lista usuarios filtrando por rol y estado; oculta superadmin a no-superadmins
@@ -178,17 +240,15 @@ export const verUsuario = async (userId: string, callerRole?: string) => {
 
 // Admin — Cambia activo/inactivo de un usuario
 export const cambiarEstadoUsuario = async (userId: string, is_active: boolean, callerRole?: string) => {
-  // Reutiliza verUsuario para validar existencia y permisos
   const user = await verUsuario(userId, callerRole);
   await UserRepository.updateById(userId, { is_active });
-  // Refresca el campo en la respuesta sin volver a leer
   user.is_active = is_active;
+  await emitUserUpdated({ userId: user.credential_id, status: is_active ? 'active' : 'inactive' });
   return user;
 };
 
 // Admin — Cambia el rol; valida que sea un rol soportado
 export const cambiarRolUsuario = async (userId: string, rol: string, callerRole?: string) => {
-  // Valida que el rol esté en el enum
   if (!Object.values(RolUsuario).includes(rol as RolUsuario)) {
     const err: any = new Error('Rol inválido');
     err.status = 400;
@@ -197,6 +257,7 @@ export const cambiarRolUsuario = async (userId: string, rol: string, callerRole?
   const user = await verUsuario(userId, callerRole);
   await UserRepository.updateById(userId, { rol: rol as RolUsuario });
   user.rol = rol as RolUsuario;
+  await emitUserUpdated({ userId: user.credential_id, role: rol });
   return user;
 };
 
@@ -240,6 +301,20 @@ export const editarDatosUsuario = async (userId: string, datos: any, callerRole?
       await InstitucionRepository.updateById(user.institucion.id, datosInstitucion);
     }
   }
+
+  await emitUserUpdated({
+    userId: user.credential_id,
+    telefono,
+    region,
+    comuna,
+    primer_nombre,
+    segundo_nombre,
+    apellido_paterno,
+    apellido_materno,
+    direccion,
+    razon_social,
+    name: nombre_institucion,
+  });
 
   // Devuelve el usuario refrescado
   const updated = await verUsuario(userId, callerRole);

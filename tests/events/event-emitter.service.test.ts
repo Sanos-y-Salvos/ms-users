@@ -1,5 +1,8 @@
-jest.mock('../../src/config/redis', () => ({
-  userEventsQueue: { add: jest.fn() },
+const mockPublish = jest.fn();
+
+jest.mock('../../src/config/rabbitmq', () => ({
+  EXCHANGE: 'user.events',
+  getChannel: () => ({ publish: mockPublish }),
 }));
 
 import {
@@ -8,57 +11,53 @@ import {
   emitUserDeleted,
   emitUserPasswordChanged,
 } from '../../src/events/event-emitter.service';
-import { userEventsQueue } from '../../src/config/redis';
 
 describe('event-emitter.service', () => {
   beforeEach(() => {
-    (userEventsQueue.add as jest.Mock).mockReset();
+    mockPublish.mockReset();
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
-  it('emitUserRegistered encola con tipo y timestamp', async () => {
-    (userEventsQueue.add as jest.Mock).mockResolvedValue({});
+  it('emitUserRegistered publica con routing key y payload correcto', async () => {
     await emitUserRegistered({
       userId: '1', email: 'a@b.c', passwordHash: 'h', role: 'ciudadano',
       permissions: [], name: 'A', tipo: 'ciudadano', telefono: '+1',
       region: 'RM', comuna: 'X',
     });
-    expect(userEventsQueue.add).toHaveBeenCalledWith(
+    expect(mockPublish).toHaveBeenCalledWith(
+      'user.events',
       'user.registered',
-      expect.objectContaining({ event: 'user.registered', userId: '1' }),
+      expect.any(Buffer),
+      { persistent: true },
     );
+    const payload = JSON.parse(mockPublish.mock.calls[0][2].toString());
+    expect(payload).toMatchObject({ event: 'user.registered', userId: '1' });
   });
 
-  it('emitUserUpdated encola correctamente', async () => {
-    (userEventsQueue.add as jest.Mock).mockResolvedValue({});
+  it('emitUserUpdated publica correctamente', async () => {
     await emitUserUpdated({ userId: '1', email: 'a@b.c' });
-    expect(userEventsQueue.add).toHaveBeenCalledWith(
-      'user.updated',
-      expect.objectContaining({ event: 'user.updated' }),
+    expect(mockPublish).toHaveBeenCalledWith(
+      'user.events', 'user.updated', expect.any(Buffer), { persistent: true },
     );
+    const payload = JSON.parse(mockPublish.mock.calls[0][2].toString());
+    expect(payload).toMatchObject({ event: 'user.updated' });
   });
 
-  it('emitUserDeleted encola con userId', async () => {
-    (userEventsQueue.add as jest.Mock).mockResolvedValue({});
+  it('emitUserDeleted publica con userId', async () => {
     await emitUserDeleted('1');
-    expect(userEventsQueue.add).toHaveBeenCalledWith(
-      'user.deleted',
-      expect.objectContaining({ event: 'user.deleted', userId: '1' }),
-    );
+    const payload = JSON.parse(mockPublish.mock.calls[0][2].toString());
+    expect(payload).toMatchObject({ event: 'user.deleted', userId: '1' });
   });
 
-  it('emitUserPasswordChanged encola con hash', async () => {
-    (userEventsQueue.add as jest.Mock).mockResolvedValue({});
+  it('emitUserPasswordChanged publica con hash', async () => {
     await emitUserPasswordChanged('1', 'h');
-    expect(userEventsQueue.add).toHaveBeenCalledWith(
-      'user.password.changed',
-      expect.objectContaining({ event: 'user.password.changed', passwordHash: 'h' }),
-    );
+    const payload = JSON.parse(mockPublish.mock.calls[0][2].toString());
+    expect(payload).toMatchObject({ event: 'user.password.changed', passwordHash: 'h' });
   });
 
-  it('no relanza si la cola falla (loguea)', async () => {
-    (userEventsQueue.add as jest.Mock).mockRejectedValue(new Error('redis down'));
+  it('no relanza si el canal falla (loguea error)', async () => {
+    mockPublish.mockImplementation(() => { throw new Error('rabbitmq down'); });
     await expect(emitUserDeleted('1')).resolves.toBeUndefined();
     expect(console.error).toHaveBeenCalled();
   });

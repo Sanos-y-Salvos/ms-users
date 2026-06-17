@@ -1,7 +1,6 @@
-// Cola Bull/Redis para publicar eventos de dominio
-import { userEventsQueue } from '../config/redis';
+import { getChannel } from '../config/rabbitmq';
+import { EXCHANGE } from '../config/rabbitmq';
 
-// Payload del evento de registro de usuario
 export interface UserRegisteredPayload {
   event: 'user.registered';
   userId: string;
@@ -11,25 +10,23 @@ export interface UserRegisteredPayload {
   permissions: string[];
   name: string;
   avatarUrl?: string;
+  foto_perfil?: string;
   tipo: 'ciudadano' | 'institucion';
   telefono: string;
   region: string;
   comuna: string;
-  // Campos específicos de ciudadano
   primer_nombre?: string;
   segundo_nombre?: string;
   apellido_paterno?: string;
   apellido_materno?: string;
   run?: string;
   direccion?: string;
-  // Campos específicos de institución
   razon_social?: string;
   rut?: string;
   tipo_institucion?: string;
   timestamp: Date;
 }
 
-// Payload del evento de actualización de usuario
 export interface UserUpdatedPayload {
   event: 'user.updated';
   userId: string;
@@ -51,14 +48,12 @@ export interface UserUpdatedPayload {
   timestamp?: Date;
 }
 
-// Payload del evento de eliminación/desactivación
 export interface UserDeletedPayload {
   event: 'user.deleted';
   userId: string;
   timestamp: Date;
 }
 
-// Payload del evento de cambio de contraseña
 export interface UserPasswordChangedPayload {
   event: 'user.password.changed';
   userId: string;
@@ -66,55 +61,45 @@ export interface UserPasswordChangedPayload {
   timestamp: Date;
 }
 
-// Publica el evento user.registered en la cola
-export const emitUserRegistered = async (data: Omit<UserRegisteredPayload, 'event' | 'timestamp'>): Promise<void> => {
-  // Arma el payload con tipo y timestamp
-  const payload: UserRegisteredPayload = { ...data, event: 'user.registered', timestamp: new Date() };
+function publish(routingKey: string, payload: object): void {
   try {
-    // Encola el job
-    await userEventsQueue.add('user.registered', payload);
-    console.log(`[event-emitter] user.registered emitido para userId=${data.userId}`);
+    getChannel().publish(
+      EXCHANGE,
+      routingKey,
+      Buffer.from(JSON.stringify(payload)),
+      { persistent: true },
+    );
+    console.log(`[event-emitter] ${routingKey} publicado`);
   } catch (err: any) {
-    // No relanza: la escritura local ya fue exitosa; Redis debería ser HA en prod
-    console.error(`[event-emitter] Falló emisión user.registered para userId=${data.userId}: ${err.message}`);
+    // No relanza: la escritura local ya fue exitosa
+    console.error(`[event-emitter] Error publicando ${routingKey}: ${err.message}`);
   }
+}
+
+export const emitUserRegistered = async (
+  data: Omit<UserRegisteredPayload, 'event' | 'timestamp'>,
+): Promise<void> => {
+  publish('user.registered', { ...data, event: 'user.registered', timestamp: new Date() });
 };
 
-// Publica el evento user.updated
-export const emitUserUpdated = async (data: Omit<UserUpdatedPayload, 'event' | 'timestamp'>): Promise<void> => {
-  const payload: UserUpdatedPayload = { ...data, event: 'user.updated', timestamp: new Date() };
-  try {
-    await userEventsQueue.add('user.updated', payload);
-    console.log(`[event-emitter] user.updated emitido para userId=${data.userId}`);
-  } catch (err: any) {
-    console.error(`[event-emitter] Falló emisión user.updated para userId=${data.userId}: ${err.message}`);
-  }
+export const emitUserUpdated = async (
+  data: Omit<UserUpdatedPayload, 'event' | 'timestamp'>,
+): Promise<void> => {
+  publish('user.updated', { ...data, event: 'user.updated', timestamp: new Date() });
 };
 
-// Publica el evento user.deleted (soft delete)
 export const emitUserDeleted = async (userId: string): Promise<void> => {
-  const payload: UserDeletedPayload = { userId, event: 'user.deleted', timestamp: new Date() };
-  try {
-    await userEventsQueue.add('user.deleted', payload);
-    console.log(`[event-emitter] user.deleted emitido para userId=${userId}`);
-  } catch (err: any) {
-    console.error(`[event-emitter] Falló emisión user.deleted para userId=${userId}: ${err.message}`);
-  }
+  publish('user.deleted', { userId, event: 'user.deleted', timestamp: new Date() });
 };
 
-// Publica el evento user.password.changed
-export const emitUserPasswordChanged = async (userId: string, passwordHash: string): Promise<void> => {
-  // Payload con userId, hash nuevo y timestamp
-  const payload: UserPasswordChangedPayload = {
+export const emitUserPasswordChanged = async (
+  userId: string,
+  passwordHash: string,
+): Promise<void> => {
+  publish('user.password.changed', {
     userId,
     passwordHash,
     event: 'user.password.changed',
     timestamp: new Date(),
-  };
-  try {
-    await userEventsQueue.add('user.password.changed', payload);
-    console.log(`[event-emitter] user.password.changed emitido para userId=${userId}`);
-  } catch (err: any) {
-    console.error(`[event-emitter] Falló emisión user.password.changed para userId=${userId}: ${err.message}`);
-  }
+  });
 };
