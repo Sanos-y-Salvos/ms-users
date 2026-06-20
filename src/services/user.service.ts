@@ -17,6 +17,31 @@ import {
   emitUserDeleted,
 } from '../events/event-emitter.service';
 
+// Llamada HTTP directa a ms-auth para operaciones que necesitan garantía síncrona.
+// El evento RabbitMQ queda como mecanismo de consistencia eventual redundante,
+// pero puede perderse si el broker no está disponible al momento de publicar.
+async function patchAuthCredential(credentialId: string, path: string, body: object): Promise<void> {
+  const authUrl = (process.env.AUTH_URL || 'http://ms-auth:3001').replace(/\/$/, '');
+  const apiKey  = process.env.INTERNAL_API_KEY;
+  if (!apiKey) {
+    console.warn('[user-service] INTERNAL_API_KEY no configurada, omitiendo sync directa con ms-auth');
+    return;
+  }
+  try {
+    const resp = await fetch(`${authUrl}/api/auth/credentials/${credentialId}/${path}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.warn(`[user-service] ms-auth respondió ${resp.status} en /credentials/${credentialId}/${path}: ${text}`);
+    }
+  } catch (err: any) {
+    console.error(`[user-service] Error sync con ms-auth /credentials/${credentialId}/${path}: ${err.message}`);
+  }
+}
+
 // RF-05 — Registro de ciudadano (sube foto opcional y delega al factory)
 export const registrarCiudadano = async (datos: any, archivo?: Express.Multer.File) => {
   // URL de la foto subida (si la hay)
@@ -243,7 +268,10 @@ export const cambiarEstadoUsuario = async (userId: string, is_active: boolean, c
   const user = await verUsuario(userId, callerRole);
   await UserRepository.updateById(userId, { is_active });
   user.is_active = is_active;
+  // Evento async (eventual consistency vía RabbitMQ)
   await emitUserUpdated({ userId: user.credential_id, status: is_active ? 'active' : 'inactive' });
+  // Sync directa a ms-auth para garantía inmediata (no depende del broker)
+  await patchAuthCredential(user.credential_id, is_active ? 'activate' : 'deactivate', {});
   return user;
 };
 
@@ -257,8 +285,16 @@ export const cambiarRolUsuario = async (userId: string, rol: string, callerRole?
   const user = await verUsuario(userId, callerRole);
   await UserRepository.updateById(userId, { rol: rol as RolUsuario });
   user.rol = rol as RolUsuario;
+  // Evento async (eventual consistency vía RabbitMQ)
   await emitUserUpdated({ userId: user.credential_id, role: rol });
+  // Sync directa a ms-auth para garantía inmediata (no depende del broker)
+  await patchAuthCredential(user.credential_id, 'role', { role: rol });
   return user;
+};
+
+// Admin — Estadísticas de usuarios para el dashboard
+export const getEstadisticas = async () => {
+  return UserRepository.getEstadisticas();
 };
 
 // Admin — Edita datos de un usuario (sin foto); mismas reglas que actualizarPerfil
