@@ -4,20 +4,6 @@ Microservicio de **gestión de usuarios** de la plataforma **Sanos y Salvos**. E
 
 ---
 
-## Responsabilidades
-
-| Sí hace | No hace |
-|---|---|
-| Registrar ciudadanos e instituciones | Emitir tokens JWT (lo hace ms-auth) |
-| Editar perfil del usuario | Validar credenciales para login (lo hace ms-auth) |
-| Cambiar contraseña (autenticado) | Refrescar sesiones (lo hace ms-auth) |
-| Recuperar contraseña vía OTP por email | — |
-| Soft-delete de cuenta | — |
-| Administración de usuarios (admin) | — |
-| Subir foto de perfil a Cloudinary | — |
-
----
-
 ## Tecnologías
 
 | Herramienta | Uso |
@@ -39,133 +25,64 @@ Microservicio de **gestión de usuarios** de la plataforma **Sanos y Salvos**. E
 
 ## Arquitectura
 
-### Patrón de arquitectura
+### Patrón arquitectónico
 
-**Arquitectura en capas**
+- **MVC (Model-View-Controller)**: Adaptado para APIs REST (Model-Route-Controller-Service). Los *Controllers* gestionan las solicitudes y respuestas HTTP, las *Routes* definen los endpoints, y la lógica de negocio se centraliza en los *Services*. Los *Models* representan las entidades de la base de datos.
 
-```
-src/routes/ → src/controllers/ → src/services/ → src/repositories/ → src/models/
-                                       ↓
-                                 src/factories/   (composición de agregados)
-                                       ↓
-                                  src/events/     (emisión asíncrona)
-```
+### Patrón de diseño
 
-- Cada capa solo depende de la inmediatamente inferior.
-- La capa `repositories/` es la **única** que toca TypeORM (`AppDataSource.getRepository`). Services, controllers y factories acceden a la BD exclusivamente a través de ella.
-- `factories/` orquesta la creación de agregados (ej. `User` + `Ciudadano`) reutilizando los repositorios.
-- `events/` publica eventos de dominio hacia otros microservicios; no toca la BD.
-- Toda la lógica de negocio y persistencia es local — no hay dependencias externas en tiempo de ejecución salvo PostgreSQL.
-
-### Patrones de diseño
-
-| Patrón | Ubicación | Propósito |
-|---|---|---|
-| **Repository** | `src/repositories/{user,ciudadano,institucion,passwordResetOtp}.repository.ts` | Capa independiente de acceso a datos. Encapsula TypeORM para que services y factories no dependan del ORM directamente. |
-| **Factory Method** | `src/factories/UserFactory.ts` | Crear ciudadanos e instituciones uniformemente, delegando la persistencia en los repositorios. |
-| **Singleton** | `src/config/db.ts`, `src/config/cloudinary.ts`, `src/utils/mailer.ts` | Instancias únicas reutilizables |
+- **Repository Pattern**: Utilizado a través de TypeORM para abstraer la capa de acceso a datos. Los servicios se comunican con los repositorios para realizar operaciones sobre la base de datos (CRUD) sin acoplarse directamente a sentencias SQL.
 
 ---
 
-## Estrategia de Branching: Git Flow
+## Estructura del proyecto
 
-### ¿Qué es Git Flow?
-
-Git Flow es una estrategia de branching para Git que define un modelo estricto de ramas diseñado para gestionar versiones de software de forma ordenada. Establece roles específicos para cada rama y cómo deben interactuar entre sí, permitiendo que múltiples desarrolladores trabajen en paralelo sin interferir en el código estable.
-
-### Ramas utilizadas
-
-```bash
-# inicializar git flow
-git flow init
 ```
-
-#### Ramas principales (permanentes)
- 
-```bash
-git checkout -b main        # Código en producción, estable
-git checkout -b develop     # Integración continua de features
-```
- 
-#### Ramas de soporte (temporales)
- 
-```bash
-# Nueva funcionalidad
-git checkout -b feature/ms-clientes develop
- 
-# Preparación de versión
-git checkout -b release/1.0.0 develop
- 
-# Corrección urgente en producción
-git checkout -b hotfix/fix-auth main
-```
-### ¿Por qué se usó Git Flow en este proyecto?
- 
-Se adoptó Git Flow como estrategia de branching con el objetivo de prepararse para trabajar en equipos grandes y entornos profesionales. En proyectos reales con múltiples desarrolladores, es fundamental contar con una convención clara que evite conflictos, permita desarrollar features en paralelo y proteja el código en producción. Git Flow establece esas reglas desde el inicio, generando buenos hábitos de colaboración y control de versiones desde etapas tempranas del desarrollo.
-
----
-
-## Requisitos previos
-
-- Node.js 20+
-- PostgreSQL 16+
-- Cuenta en [Cloudinary](https://cloudinary.com) (plan gratuito suficiente)
-- Cuenta Gmail con [contraseña de aplicación](https://myaccount.google.com/apppasswords) habilitada (para OTP)
-
----
-
-## Variables de entorno
-
-Archivo `.env` en la raíz:
-
-```env
-PORT=3002
-
-# PostgreSQL
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_NAME=ms_users
-
-# JWT 
-JWT_SECRET=tu_secreto_minimo_64_caracteres
-
-# Cloudinary
-CLOUDINARY_CLOUD_NAME=tu_cloud_name
-CLOUDINARY_API_KEY=tu_api_key
-CLOUDINARY_API_SECRET=tu_api_secret
-
-# Gmail (envío de OTP para recuperar contraseña)
-GMAIL_USER=tu_correo@gmail.com
-GMAIL_APP_PASSWORD=tu_app_password_gmail
-
-NODE_ENV=development
-```
-
----
-
-## Instalación y ejecución
-
-```bash
-git clone <url-del-repositorio>
-cd ms-users
-npm install
-
-# Desarrollo (hot reload)
-npm run dev
-
-# Producción
-npm run build && npm start
-```
-
-La base de datos se crea automáticamente al iniciar si no existe (`ensureDatabase()` en `server.ts`).
-
-### Con Docker
-
-```bash
-cd ms-users
-docker compose up -d
+ms-users/
+├── src/
+│   ├── config/
+│   │   ├── cloudinary.ts           # Configuración Cloudinary (Singleton)
+│   │   ├── db.ts                   # Conexión PostgreSQL + TypeORM (Singleton)
+│   │   ├── redis.ts                # Definición de cola Bull (no utilizada en modo standalone)
+│   │   └── swagger.ts              # Configuración OpenAPI 3.0
+│   ├── controllers/
+│   │   ├── user.controller.ts      # CRUD de usuarios
+│   │   └── password.controller.ts  # Cambio y recuperación de contraseña
+│   ├── events/
+│   │   └── event-emitter.service.ts # Definición de eventos (no utilizada en modo standalone)
+│   ├── factories/
+│   │   └── UserFactory.ts          # Factory: ciudadanos e instituciones
+│   ├── middlewares/
+│   │   ├── errorHandler.ts
+│   │   ├── notFound.ts
+│   │   ├── requireRole.ts          # Control de acceso por rol
+│   │   └── verifyToken.ts          # Verificación JWT
+│   ├── models/
+│   │   ├── Ciudadano.ts
+│   │   ├── Institucion.ts
+│   │   ├── PasswordResetOtp.ts     # OTP para reset
+│   │   └── User.ts                 # Incluye password_hash (fuente de verdad)
+│   ├── repositories/                # Capa independiente de acceso a datos (única que usa TypeORM)
+│   │   ├── ciudadano.repository.ts
+│   │   ├── institucion.repository.ts
+│   │   ├── passwordResetOtp.repository.ts
+│   │   └── user.repository.ts
+│   ├── routes/
+│   │   └── user.routes.ts          # Rutas + Swagger inline
+│   ├── services/
+│   │   ├── password.service.ts     # Cambio y reset de contraseña + OTP
+│   │   └── user.service.ts         # CRUD de perfil y admin
+│   ├── utils/
+│   │   ├── mailer.ts               # Envío de OTP por Gmail (Singleton)
+│   │   ├── response.ts             # Helpers HTTP estandarizados
+│   │   ├── validarDigitoVerificador.ts  # Algoritmo módulo 11
+│   │   └── validators.ts
+│   ├── app.ts
+│   └── server.ts                   # Entry point — crea BD si no existe
+├── Dockerfile
+├── docker-compose.yml
+├── package.json
+└── tsconfig.json
 ```
 
 ---
@@ -408,88 +325,6 @@ Content-Type: application/json
 
 ---
 
-## Estructura del proyecto
-
-```
-ms-users/
-├── src/
-│   ├── config/
-│   │   ├── cloudinary.ts           # Configuración Cloudinary (Singleton)
-│   │   ├── db.ts                   # Conexión PostgreSQL + TypeORM (Singleton)
-│   │   ├── redis.ts                # Definición de cola Bull (no utilizada en modo standalone)
-│   │   └── swagger.ts              # Configuración OpenAPI 3.0
-│   ├── controllers/
-│   │   ├── user.controller.ts      # CRUD de usuarios
-│   │   └── password.controller.ts  # Cambio y recuperación de contraseña
-│   ├── events/
-│   │   └── event-emitter.service.ts # Definición de eventos (no utilizada en modo standalone)
-│   ├── factories/
-│   │   └── UserFactory.ts          # Factory: ciudadanos e instituciones
-│   ├── middlewares/
-│   │   ├── errorHandler.ts
-│   │   ├── notFound.ts
-│   │   ├── requireRole.ts          # Control de acceso por rol
-│   │   └── verifyToken.ts          # Verificación JWT
-│   ├── models/
-│   │   ├── Ciudadano.ts
-│   │   ├── Institucion.ts
-│   │   ├── PasswordResetOtp.ts     # OTP para reset
-│   │   └── User.ts                 # Incluye password_hash (fuente de verdad)
-│   ├── repositories/                # Capa independiente de acceso a datos (única que usa TypeORM)
-│   │   ├── ciudadano.repository.ts
-│   │   ├── institucion.repository.ts
-│   │   ├── passwordResetOtp.repository.ts
-│   │   └── user.repository.ts
-│   ├── routes/
-│   │   └── user.routes.ts          # Rutas + Swagger inline
-│   ├── services/
-│   │   ├── password.service.ts     # Cambio y reset de contraseña + OTP
-│   │   └── user.service.ts         # CRUD de perfil y admin
-│   ├── utils/
-│   │   ├── mailer.ts               # Envío de OTP por Gmail (Singleton)
-│   │   ├── response.ts             # Helpers HTTP estandarizados
-│   │   ├── validarDigitoVerificador.ts  # Algoritmo módulo 11
-│   │   └── validators.ts
-│   ├── app.ts
-│   └── server.ts                   # Entry point — crea BD si no existe
-├── Dockerfile
-├── docker-compose.yml
-├── package.json
-└── tsconfig.json
-```
-
----
-
-## Scripts
-
-| Comando | Descripción |
-|---|---|
-| `npm run dev` | Hot reload con nodemon + ts-node |
-| `npm run build` | Compila TypeScript a `/dist` |
-| `npm start` | Ejecuta la versión compilada |
-| `docker compose up -d` | Levanta ms-users + PostgreSQL |
-| `docker compose down -v` | Detiene y limpia datos |
-
----
-
-## Flujo de registro completo
-
-```
-1. Cliente                → POST /api/users/register/ciudadano
-2. routes/user.routes     → enruta al controller
-3. controllers/user       → valida campos (email, RUN, password, etc.) y llama al service
-4. services/user.service  → (si hay foto) sube a Cloudinary; delega en UserFactory.crearCiudadano
-5. factories/UserFactory  → valida RUN (módulo 11), hashea password con bcrypt,
-                            genera credential_id (uuid) y arma las entidades
-6. repositories/user      → persiste el User en PostgreSQL
-7. repositories/ciudadano → persiste el Ciudadano vinculado al User
-8. Cliente                ← 201 con datos del usuario creado
-```
-
-> El mismo flujo aplica al registro de institución, sustituyendo `crearCiudadano` por `crearInstitucion` y `repositories/ciudadano` por `repositories/institucion`.
-
----
-
 ## Crear el primer superadmin (con Docker corriendo)
 
 > Como no existe ningún admin todavía para usar el endpoint `/admin/usuarios/:id/rol`, hay que actualizar la BD manualmente. Solo requiere `ms-users` corriendo.
@@ -529,10 +364,25 @@ Inicia sesión en `http://localhost` (o directamente en `ms-auth` si está dispo
 
 ---
 
-## Diagnóstico
+## Pruebas Unitarias
 
-| Síntoma | Causa probable | Solución |
-|---|---|---|
-| `El correo ya está registrado` | Email duplicado en PG | Usar otro email o reactivar la cuenta |
-| `RUN inválido` | Dígito verificador incorrecto | Validar con módulo 11 antes de enviar |
-| OTP no llega | GMAIL_APP_PASSWORD incorrecto o spam | Revisar carpeta de spam, regenerar app password |
+El proyecto cuenta con una suite de pruebas unitarias para garantizar la calidad y el correcto funcionamiento de los servicios.
+
+**Ejecutar las pruebas:**
+```bash
+npm run test
+```
+
+**Generar reporte de cobertura:**
+```bash
+npm run test:coverage
+```
+
+Para visualizar el reporte de cobertura detallado, abre el archivo generado en tu navegador:
+```bash
+open coverage/index.html
+```
+
+**Reporte de cobertura:**
+
+![Reporte de pruebas unitarias](./assets/Screenshot_2026-06-22_23.01.08.png) 
