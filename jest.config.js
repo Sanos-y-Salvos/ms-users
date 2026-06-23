@@ -3,11 +3,12 @@ module.exports = {
   displayName: 'ms-users',
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  roots: ['<rootDir>/src'],
   testMatch: ['**/?(*.)+(spec|test).ts'],
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.ts',
+    '!src/tests/**',
     '!src/server.ts',
     '!src/app.ts',
     '!src/config/**',

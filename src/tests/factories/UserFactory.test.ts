@@ -1,17 +1,17 @@
 // Mockeamos repositorios y bcrypt antes de importar el módulo bajo prueba
-jest.mock('../../src/repositories/user.repository', () => ({
+jest.mock('../../repositories/user.repository', () => ({
   UserRepository: {
     create: jest.fn((data) => ({ ...data })),
     save: jest.fn(async (u) => u),
   },
 }));
-jest.mock('../../src/repositories/ciudadano.repository', () => ({
+jest.mock('../../repositories/ciudadano.repository', () => ({
   CiudadanoRepository: {
     create: jest.fn((data) => ({ ...data })),
     save: jest.fn(async (c) => c),
   },
 }));
-jest.mock('../../src/repositories/institucion.repository', () => ({
+jest.mock('../../repositories/institucion.repository', () => ({
   InstitucionRepository: {
     create: jest.fn((data) => ({ ...data })),
     save: jest.fn(async (i) => i),
@@ -22,12 +22,12 @@ jest.mock('bcrypt', () => ({
 }));
 jest.mock('uuid', () => ({ v4: () => 'uuid-1234' }));
 
-import { CiudadanoCreator, InstitucionCreator } from '../../src/factories/UserFactory';
-import { RolUsuario, TipoUsuario } from '../../src/models/User';
-import { TipoInstitucion } from '../../src/models/Institucion';
-import { UserRepository } from '../../src/repositories/user.repository';
-import { CiudadanoRepository } from '../../src/repositories/ciudadano.repository';
-import { InstitucionRepository } from '../../src/repositories/institucion.repository';
+import { CiudadanoCreator, InstitucionCreator, UserCreator, DatosBaseUsuario } from '../../factories/UserFactory';
+import { RolUsuario, TipoUsuario, User } from '../../models/User';
+import { TipoInstitucion } from '../../models/Institucion';
+import { UserRepository } from '../../repositories/user.repository';
+import { CiudadanoRepository } from '../../repositories/ciudadano.repository';
+import { InstitucionRepository } from '../../repositories/institucion.repository';
 
 const datosCiudadanoValidos = {
   email: 'JUAN@correo.cl',
@@ -83,6 +83,25 @@ describe('CiudadanoCreator', () => {
   it('relanza errores desconocidos de save', async () => {
     (UserRepository.save as jest.Mock).mockRejectedValueOnce(new Error('db down'));
     await expect(new CiudadanoCreator().crear(datosCiudadanoValidos)).rejects.toThrow('db down');
+  });
+});
+
+describe('UserCreator (base validar)', () => {
+  it('la implementación base de validar no lanza', async () => {
+    class MinimalCreator extends UserCreator<DatosBaseUsuario, any> {
+      protected obtenerRol(): RolUsuario { return RolUsuario.CIUDADANO; }
+      protected obtenerTipo(): TipoUsuario { return TipoUsuario.CIUDADANO; }
+      protected async crearProducto(_user: User): Promise<any> { return {}; }
+    }
+    await expect(
+      new MinimalCreator().crear({
+        email: 'base@test.cl',
+        password: 'secret123',
+        telefono: '+56911111111',
+        region: 'RM',
+        comuna: 'Santiago',
+      }),
+    ).resolves.toMatchObject({ entidad: {} });
   });
 });
 

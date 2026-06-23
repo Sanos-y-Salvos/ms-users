@@ -1,4 +1,4 @@
-import { notFound } from '../../src/middlewares/notFound';
+import { notFound } from '../../middlewares/notFound';
 
 function mockRes() {
   const res: any = {};

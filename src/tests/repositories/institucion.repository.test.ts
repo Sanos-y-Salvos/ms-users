@@ -4,11 +4,11 @@ const repoMethods = {
   update: jest.fn(async () => undefined),
 };
 
-jest.mock('../../src/config/db', () => ({
+jest.mock('../../config/db', () => ({
   AppDataSource: { getRepository: jest.fn(() => repoMethods) },
 }));
 
-import { InstitucionRepository } from '../../src/repositories/institucion.repository';
+import { InstitucionRepository } from '../../repositories/institucion.repository';
 
 describe('InstitucionRepository', () => {
   it('expone create, save y updateById', async () => {

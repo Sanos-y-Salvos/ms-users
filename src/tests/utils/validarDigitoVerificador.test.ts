@@ -1,4 +1,4 @@
-import { validarDigitoVerificador } from '../../src/utils/validarDigitoVerificador';
+import { validarDigitoVerificador } from '../../utils/validarDigitoVerificador';
 
 describe('validarDigitoVerificador', () => {
   it('valida un RUT correcto con DV numérico', () => {
@@ -34,5 +34,10 @@ describe('validarDigitoVerificador', () => {
 
   it('devuelve false con string vacío', () => {
     expect(validarDigitoVerificador('')).toBe(false);
+  });
+
+  it('valida un RUT cuyo DV calculado es 0', () => {
+    // cuerpo "31": 1*2 + 3*3 = 2+9 = 11, 11%11=0 → DV='0'
+    expect(validarDigitoVerificador('31-0')).toBe(true);
   });
 });

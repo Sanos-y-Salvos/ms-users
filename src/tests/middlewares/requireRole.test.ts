@@ -1,4 +1,4 @@
-import { requireRole } from '../../src/middlewares/requireRole';
+import { requireRole } from '../../middlewares/requireRole';
 
 function mockRes() {
   const res: any = {};
