@@ -28,7 +28,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    platform: linux/amd64
+    #platform: linux/amd64
     environment:
       NODE_ENV: production
       PORT: 3002
@@ -45,6 +45,10 @@ services:
       
       # RabbitMQ Central — message broker externo (Apunta a tu contenedor central)
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+
+      # ms-auth — URL interna para sync directa de rol/estado (fallback al broker)
+      AUTH_URL: http://ms-auth:3001
+      INTERNAL_API_KEY: fe7db533c3030b5da6e544f4c631f92cbcdf0f0d452962e3cbfe08ca5a8c116e
       
       # Cloudinary
       CLOUDINARY_CLOUD_NAME: dx83p4455

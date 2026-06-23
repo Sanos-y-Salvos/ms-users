@@ -321,6 +321,9 @@ router.delete('/perfil', verifyToken, UserController.desactivarCuenta);
  *       401:
  *         description: Token requerido
  */
+// Estadísticas de usuarios: solo admin, superadmin o moderador
+router.get('/admin/estadisticas', verifyToken, requireRole('administrador', 'superadmin', 'moderador'), UserController.getEstadisticas);
+
 // Listar usuarios: solo admin, superadmin o moderador
 router.get('/admin/usuarios', verifyToken, requireRole('administrador', 'superadmin', 'moderador'), UserController.listarUsuarios);
 

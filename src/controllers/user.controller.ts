@@ -177,6 +177,16 @@ export const cambiarRolUsuario = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+// Admin — Estadísticas para el dashboard
+export const getEstadisticas = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const data = await UserService.getEstadisticas();
+    successResponse(res, data);
+  } catch (err: any) {
+    errorResponse(res, err.message);
+  }
+};
+
 // Admin — Edita datos de un usuario (sin foto)
 export const editarDatosUsuario = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
