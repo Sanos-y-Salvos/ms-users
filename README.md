@@ -383,6 +383,6 @@ Para visualizar el reporte de cobertura detallado, abre el archivo generado en t
 open coverage/index.html
 ```
 
-**Reporte de cobertura:**
+**Reporte de cobertura test microservicio:**
 
 ![Reporte de pruebas unitarias](./assets/Screenshot_2026-06-22_23.01.08.png) 
