@@ -150,6 +150,12 @@ export const actualizarPerfil = async (credentialId: string, datos: any, archivo
   // Desestructura todos los posibles campos del body
   const { telefono, region, comuna, primer_nombre, segundo_nombre, apellido_paterno, apellido_materno, direccion, nombre_institucion, razon_social } = datos;
 
+  if (telefono !== undefined && !/^\+569\d{8}$/.test(telefono)) {
+    const err: any = new Error('Teléfono inválido. Formato requerido: +569XXXXXXXX');
+    err.status = 422;
+    throw err;
+  }
+
   // Acumula los campos a actualizar en User
   const datosUser: Partial<User> = {};
   if (telefono !== undefined) datosUser.telefono = telefono;
@@ -304,6 +310,12 @@ export const editarDatosUsuario = async (userId: string, datos: any, callerRole?
 
   // Desestructura los campos editables
   const { telefono, region, comuna, primer_nombre, segundo_nombre, apellido_paterno, apellido_materno, direccion, nombre_institucion, razon_social } = datos;
+
+  if (telefono !== undefined && !/^\+569\d{8}$/.test(telefono)) {
+    const err: any = new Error('Teléfono inválido. Formato requerido: +569XXXXXXXX');
+    err.status = 422;
+    throw err;
+  }
 
   // Update parcial sobre User
   const datosUser: Partial<User> = {};

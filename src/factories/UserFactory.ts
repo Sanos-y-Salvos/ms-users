@@ -110,9 +110,12 @@ export abstract class UserCreator<TDatos extends DatosBaseUsuario, TProducto> {
 }
 
 // ConcreteCreator — produce un Ciudadano
+const TELEFONO_CL = /^\+569\d{8}$/;
+
 export class CiudadanoCreator extends UserCreator<DatosCiudadano, Ciudadano> {
   protected validar(datos: DatosCiudadano): void {
     if (!validarDigitoVerificador(datos.run)) throw new Error('RUN inválido');
+    if (!TELEFONO_CL.test(datos.telefono)) throw new Error('Teléfono inválido. Formato requerido: +569XXXXXXXX');
   }
 
   protected obtenerRol(): RolUsuario { return RolUsuario.CIUDADANO; }
@@ -143,6 +146,7 @@ export class InstitucionCreator extends UserCreator<DatosInstitucion, Institucio
     ) {
       throw new Error('Tipo de institución inválido');
     }
+    if (!TELEFONO_CL.test(datos.telefono)) throw new Error('Teléfono inválido. Formato requerido: +569XXXXXXXX');
   }
 
   // El rol depende del subtipo de institución — por eso se resuelve por datos
