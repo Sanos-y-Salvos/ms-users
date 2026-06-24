@@ -7,11 +7,11 @@ const repoMethods = {
   update: jest.fn(async () => undefined),
 };
 
-jest.mock('../../src/config/db', () => ({
+jest.mock('../../config/db', () => ({
   AppDataSource: { getRepository: jest.fn(() => repoMethods) },
 }));
 
-import { UserRepository } from '../../src/repositories/user.repository';
+import { UserRepository } from '../../repositories/user.repository';
 
 describe('UserRepository', () => {
   beforeEach(() => {
@@ -58,10 +58,25 @@ describe('UserRepository', () => {
     });
   });
 
+  it('findById sin withRelations usa relations: undefined', async () => {
+    await UserRepository.findById('1');
+    expect(repoMethods.findOne).toHaveBeenCalledWith({
+      where: { id: '1' },
+      relations: undefined,
+    });
+  });
+
   it('findByEmail con activeOnly', async () => {
     await UserRepository.findByEmail('a@b.c', { activeOnly: true });
     expect(repoMethods.findOne).toHaveBeenCalledWith({
       where: { email: 'a@b.c', is_active: true },
+    });
+  });
+
+  it('findByEmail sin activeOnly no agrega is_active', async () => {
+    await UserRepository.findByEmail('a@b.c');
+    expect(repoMethods.findOne).toHaveBeenCalledWith({
+      where: { email: 'a@b.c' },
     });
   });
 

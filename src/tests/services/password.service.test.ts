@@ -1,10 +1,10 @@
-jest.mock('../../src/events/event-emitter.service', () => ({
+jest.mock('../../events/event-emitter.service', () => ({
   emitUserRegistered: jest.fn(async () => undefined),
   emitUserUpdated: jest.fn(async () => undefined),
   emitUserDeleted: jest.fn(async () => undefined),
   emitUserPasswordChanged: jest.fn(async () => undefined),
 }));
-jest.mock('../../src/repositories/user.repository', () => ({
+jest.mock('../../repositories/user.repository', () => ({
   UserRepository: {
     findByCredentialId: jest.fn(),
     findByEmail: jest.fn(),
@@ -12,7 +12,7 @@ jest.mock('../../src/repositories/user.repository', () => ({
     updateByEmail: jest.fn(),
   },
 }));
-jest.mock('../../src/repositories/passwordResetOtp.repository', () => ({
+jest.mock('../../repositories/passwordResetOtp.repository', () => ({
   PasswordResetOtpRepository: {
     deleteByEmail: jest.fn(),
     create: jest.fn((data) => ({ ...data, id: 'otp-1' })),
@@ -21,7 +21,7 @@ jest.mock('../../src/repositories/passwordResetOtp.repository', () => ({
     deleteById: jest.fn(),
   },
 }));
-jest.mock('../../src/utils/mailer', () => ({
+jest.mock('../../utils/mailer', () => ({
   sendOtpEmail: jest.fn(async () => undefined),
 }));
 jest.mock('bcrypt', () => ({
@@ -30,10 +30,10 @@ jest.mock('bcrypt', () => ({
 }));
 
 import bcrypt from 'bcrypt';
-import { UserRepository } from '../../src/repositories/user.repository';
-import { PasswordResetOtpRepository } from '../../src/repositories/passwordResetOtp.repository';
-import { sendOtpEmail } from '../../src/utils/mailer';
-import * as PasswordService from '../../src/services/password.service';
+import { UserRepository } from '../../repositories/user.repository';
+import { PasswordResetOtpRepository } from '../../repositories/passwordResetOtp.repository';
+import { sendOtpEmail } from '../../utils/mailer';
+import * as PasswordService from '../../services/password.service';
 
 describe('changePassword', () => {
   beforeEach(() => jest.clearAllMocks());

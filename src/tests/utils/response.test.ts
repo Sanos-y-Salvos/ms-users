@@ -1,4 +1,4 @@
-import { successResponse, errorResponse } from '../../src/utils/response';
+import { successResponse, errorResponse } from '../../utils/response';
 
 function mockRes() {
   const res: any = {};

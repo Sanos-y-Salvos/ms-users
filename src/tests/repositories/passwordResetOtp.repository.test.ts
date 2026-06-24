@@ -5,11 +5,11 @@ const repoMethods = {
   delete: jest.fn(async () => undefined),
 };
 
-jest.mock('../../src/config/db', () => ({
+jest.mock('../../config/db', () => ({
   AppDataSource: { getRepository: jest.fn(() => repoMethods) },
 }));
 
-import { PasswordResetOtpRepository } from '../../src/repositories/passwordResetOtp.repository';
+import { PasswordResetOtpRepository } from '../../repositories/passwordResetOtp.repository';
 
 describe('PasswordResetOtpRepository', () => {
   beforeEach(() => {

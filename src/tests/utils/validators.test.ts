@@ -3,7 +3,7 @@ import {
   esEmailValido,
   esTelefonoValido,
   normalizarYValidarRut,
-} from '../../src/utils/validators';
+} from '../../utils/validators';
 
 describe('esNombreValido', () => {
   it('acepta nombres con letras y tildes', () => {

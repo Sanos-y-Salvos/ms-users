@@ -1,6 +1,6 @@
 const mockPublish = jest.fn();
 
-jest.mock('../../src/config/rabbitmq', () => ({
+jest.mock('../../config/rabbitmq', () => ({
   EXCHANGE: 'user.events',
   getChannel: () => ({ publish: mockPublish }),
 }));
@@ -10,7 +10,7 @@ import {
   emitUserUpdated,
   emitUserDeleted,
   emitUserPasswordChanged,
-} from '../../src/events/event-emitter.service';
+} from '../../events/event-emitter.service';
 
 describe('event-emitter.service', () => {
   beforeEach(() => {

@@ -4,11 +4,11 @@ const repoMethods = {
   update: jest.fn(async () => undefined),
 };
 
-jest.mock('../../src/config/db', () => ({
+jest.mock('../../config/db', () => ({
   AppDataSource: { getRepository: jest.fn(() => repoMethods) },
 }));
 
-import { CiudadanoRepository } from '../../src/repositories/ciudadano.repository';
+import { CiudadanoRepository } from '../../repositories/ciudadano.repository';
 
 describe('CiudadanoRepository', () => {
   it('create, save y updateById delegan al repo TypeORM', async () => {
