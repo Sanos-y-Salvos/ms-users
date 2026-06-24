@@ -26,8 +26,8 @@ export const registrarCiudadano = async (req: Request, res: Response): Promise<v
     if (!esTelefonoValido(telefono)) { errorResponse(res, 'Teléfono inválido: solo números, con + opcional al inicio'); return; }
     if (!esNombreValido(primer_nombre)) { errorResponse(res, 'El primer nombre debe tener al menos 3 letras y no contener números ni símbolos'); return; }
     if (segundo_nombre && !esNombreValido(segundo_nombre)) { errorResponse(res, 'El segundo nombre debe tener al menos 3 letras y no contener números ni símbolos'); return; }
-    if (!esNombreValido(apellido_paterno)) { errorResponse(res, 'El apellido paterno debe tener al menos 3 letras y no contener números ni símbolos'); return; }
-    if (apellido_materno && !esNombreValido(apellido_materno)) { errorResponse(res, 'El apellido materno debe tener al menos 3 letras y no contener números ni símbolos'); return; }
+    if (!esNombreValido(apellido_paterno)) { errorResponse(res, 'El primer apellido debe tener al menos 3 letras y no contener números ni símbolos'); return; }
+    if (apellido_materno && !esNombreValido(apellido_materno)) { errorResponse(res, 'El segundo apellido debe tener al menos 3 letras y no contener números ni símbolos'); return; }
 
     // Normaliza y valida el RUN
     const runValidado = normalizarYValidarRut(run);
@@ -100,8 +100,8 @@ export const actualizarPerfil = async (req: AuthRequest, res: Response): Promise
     if (telefono !== undefined && !esTelefonoValido(telefono)) { errorResponse(res, 'Teléfono inválido: solo números, con + opcional al inicio'); return; }
     if (primer_nombre !== undefined && !esNombreValido(primer_nombre)) { errorResponse(res, 'El primer nombre debe tener al menos 3 letras y no contener números ni símbolos'); return; }
     if (segundo_nombre !== undefined && segundo_nombre !== '' && !esNombreValido(segundo_nombre)) { errorResponse(res, 'El segundo nombre debe tener al menos 3 letras y no contener números ni símbolos'); return; }
-    if (apellido_paterno !== undefined && !esNombreValido(apellido_paterno)) { errorResponse(res, 'El apellido paterno debe tener al menos 3 letras y no contener números ni símbolos'); return; }
-    if (apellido_materno !== undefined && apellido_materno !== '' && !esNombreValido(apellido_materno)) { errorResponse(res, 'El apellido materno debe tener al menos 3 letras y no contener números ni símbolos'); return; }
+    if (apellido_paterno !== undefined && !esNombreValido(apellido_paterno)) { errorResponse(res, 'El primer apellido debe tener al menos 3 letras y no contener números ni símbolos'); return; }
+    if (apellido_materno !== undefined && apellido_materno !== '' && !esNombreValido(apellido_materno)) { errorResponse(res, 'El segundo apellido debe tener al menos 3 letras y no contener números ni símbolos'); return; }
     if (nombre_institucion !== undefined && !esNombreValido(nombre_institucion)) { errorResponse(res, 'El nombre de institución debe tener al menos 3 letras y no contener números ni símbolos'); return; }
     if (razon_social !== undefined && !esNombreValido(razon_social)) { errorResponse(res, 'La razón social debe tener al menos 3 letras y no contener números ni símbolos'); return; }
 
@@ -197,8 +197,8 @@ export const editarDatosUsuario = async (req: AuthRequest, res: Response): Promi
     if (telefono !== undefined && !esTelefonoValido(telefono)) { errorResponse(res, 'Teléfono inválido: solo números, con + opcional al inicio'); return; }
     if (primer_nombre !== undefined && !esNombreValido(primer_nombre)) { errorResponse(res, 'El primer nombre debe tener al menos 3 letras y no contener números ni símbolos'); return; }
     if (segundo_nombre !== undefined && segundo_nombre !== '' && !esNombreValido(segundo_nombre)) { errorResponse(res, 'El segundo nombre debe tener al menos 3 letras y no contener números ni símbolos'); return; }
-    if (apellido_paterno !== undefined && !esNombreValido(apellido_paterno)) { errorResponse(res, 'El apellido paterno debe tener al menos 3 letras y no contener números ni símbolos'); return; }
-    if (apellido_materno !== undefined && apellido_materno !== '' && !esNombreValido(apellido_materno)) { errorResponse(res, 'El apellido materno debe tener al menos 3 letras y no contener números ni símbolos'); return; }
+    if (apellido_paterno !== undefined && !esNombreValido(apellido_paterno)) { errorResponse(res, 'El primer apellido debe tener al menos 3 letras y no contener números ni símbolos'); return; }
+    if (apellido_materno !== undefined && apellido_materno !== '' && !esNombreValido(apellido_materno)) { errorResponse(res, 'El segundo apellido debe tener al menos 3 letras y no contener números ni símbolos'); return; }
     if (nombre_institucion !== undefined && !esNombreValido(nombre_institucion)) { errorResponse(res, 'El nombre de institución debe tener al menos 3 letras y no contener números ni símbolos'); return; }
     if (razon_social !== undefined && !esNombreValido(razon_social)) { errorResponse(res, 'La razón social debe tener al menos 3 letras y no contener números ni símbolos'); return; }
 

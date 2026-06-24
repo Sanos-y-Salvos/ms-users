@@ -26,11 +26,11 @@ export class Ciudadano {
   @Column({ nullable: true })
   segundo_nombre!: string;
 
-  // Apellido paterno (obligatorio)
+  // Primer apellido (obligatorio)
   @Column()
   apellido_paterno!: string;
 
-  // Apellido materno (opcional)
+  // Segundo apellido (opcional)
   @Column({ nullable: true })
   apellido_materno!: string;
 

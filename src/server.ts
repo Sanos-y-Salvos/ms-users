@@ -3,6 +3,7 @@ import { Client } from 'pg';
 import app from './app';
 import { AppDataSource } from './config/db';
 import { connectRabbitMQ } from './config/rabbitmq';
+import { seedAdminUser } from './seed/adminSeed';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -30,6 +31,8 @@ ensureDatabase()
   .then(() => AppDataSource.initialize())
   .then(async () => {
     console.log('✅ Conexión a PostgreSQL establecida');
+    // Seed idempotente: crea el admin fijo si aún no existe
+    await seedAdminUser();
     await connectRabbitMQ();
     app.listen(PORT, () => {
       console.log(`🚀 MS-Users corriendo en http://localhost:${PORT}`);
