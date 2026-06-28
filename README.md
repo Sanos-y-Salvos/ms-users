@@ -132,6 +132,21 @@ http://localhost:3002/api/docs
 
 ---
 
+## Eventos RabbitMQ publicados
+
+`ms-users` publica eventos en el exchange **`user.events`** (tipo `topic`) que `ms-auth` consume para mantener su réplica de credenciales sincronizada.
+
+| Routing key | Cuándo se emite |
+|---|---|
+| `user.registered` | Un nuevo usuario se registra exitosamente |
+| `user.updated` | Se actualiza el perfil o rol del usuario |
+| `user.deleted` | La cuenta es desactivada (soft delete) |
+| `user.password.changed` | El usuario cambia o resetea su contraseña |
+
+> `ms-auth` nunca llama a `ms-users` por HTTP. Toda la sincronización de credenciales es event-driven vía este exchange.
+
+---
+
 ## Postman — Listo para probar
 
 > **URL base:** `http://localhost:3002`
