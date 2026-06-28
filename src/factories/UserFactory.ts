@@ -60,7 +60,7 @@ export abstract class UserCreator<TDatos extends DatosBaseUsuario, TProducto> {
   // No se sobreescribe; las subclases sólo personalizan los puntos de extensión.
   async crear(datos: TDatos): Promise<{ user: User; entidad: TProducto }> {
     // 1. Validación específica del tipo (hook)
-    this.validar(datos);
+    await this.validar(datos);
 
     // 2. Construcción y persistencia del User base (común a todos los tipos)
     const user = await this.crearUserBase(datos);
@@ -79,7 +79,7 @@ export abstract class UserCreator<TDatos extends DatosBaseUsuario, TProducto> {
   protected abstract obtenerTipo(): TipoUsuario;
 
   // Hook opcional — por defecto no valida nada
-  protected validar(_datos: TDatos): void {}
+  protected async validar(_datos: TDatos): Promise<void> {}
 
   // Paso común reutilizado por todas las subclases
   private async crearUserBase(datos: TDatos): Promise<User> {
@@ -113,9 +113,11 @@ export abstract class UserCreator<TDatos extends DatosBaseUsuario, TProducto> {
 const TELEFONO_CL = /^\+569\d{8}$/;
 
 export class CiudadanoCreator extends UserCreator<DatosCiudadano, Ciudadano> {
-  protected validar(datos: DatosCiudadano): void {
+  protected async validar(datos: DatosCiudadano): Promise<void> {
     if (!validarDigitoVerificador(datos.run)) throw new Error('RUN inválido');
     if (!TELEFONO_CL.test(datos.telefono)) throw new Error('Teléfono inválido. Formato requerido: +569XXXXXXXX');
+    const existente = await CiudadanoRepository.findByRun(datos.run);
+    if (existente) throw new Error('El RUN ya está registrado');
   }
 
   protected obtenerRol(): RolUsuario { return RolUsuario.CIUDADANO; }
@@ -138,7 +140,7 @@ export class CiudadanoCreator extends UserCreator<DatosCiudadano, Ciudadano> {
 
 // ConcreteCreator — produce una Institucion
 export class InstitucionCreator extends UserCreator<DatosInstitucion, Institucion> {
-  protected validar(datos: DatosInstitucion): void {
+  protected async validar(datos: DatosInstitucion): Promise<void> {
     if (!validarDigitoVerificador(datos.rut)) throw new Error('RUT inválido');
     if (
       datos.tipo_institucion !== TipoInstitucion.VETERINARIA &&
@@ -147,6 +149,8 @@ export class InstitucionCreator extends UserCreator<DatosInstitucion, Institucio
       throw new Error('Tipo de institución inválido');
     }
     if (!TELEFONO_CL.test(datos.telefono)) throw new Error('Teléfono inválido. Formato requerido: +569XXXXXXXX');
+    const existente = await InstitucionRepository.findByRut(datos.rut);
+    if (existente) throw new Error('El RUT ya está registrado');
   }
 
   // El rol depende del subtipo de institución — por eso se resuelve por datos

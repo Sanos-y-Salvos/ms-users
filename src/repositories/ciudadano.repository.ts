@@ -22,4 +22,8 @@ export const CiudadanoRepository = {
   async updateById(id: string, data: Partial<Ciudadano>): Promise<void> {
     await repo().update({ id }, data);
   },
+
+  async findByRun(run: string): Promise<Ciudadano | null> {
+    return repo().findOne({ where: { run } });
+  },
 };

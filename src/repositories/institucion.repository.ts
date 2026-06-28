@@ -22,4 +22,8 @@ export const InstitucionRepository = {
   async updateById(id: string, data: Partial<Institucion>): Promise<void> {
     await repo().update({ id }, data);
   },
+
+  async findByRut(rut: string): Promise<Institucion | null> {
+    return repo().findOne({ where: { rut } });
+  },
 };
