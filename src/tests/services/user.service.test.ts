@@ -1,3 +1,5 @@
+beforeEach(() => jest.spyOn(console, 'warn').mockImplementation(() => {}));
+
 jest.mock('../../events/event-emitter.service', () => ({
   emitUserRegistered: jest.fn(async () => undefined),
   emitUserUpdated: jest.fn(async () => undefined),
@@ -19,6 +21,7 @@ jest.mock('../../repositories/user.repository', () => ({
     findAll: jest.fn(),
     updateByCredentialId: jest.fn(),
     updateById: jest.fn(),
+    getEstadisticas: jest.fn(),
   },
 }));
 jest.mock('../../repositories/ciudadano.repository', () => ({
@@ -353,5 +356,77 @@ describe('editarDatosUsuario', () => {
       .mockResolvedValueOnce({ id: '2', tipo: 'institucion', rol: RolUsuario.VETERINARIA, institucion: { id: 'i1' } });
     await UserService.editarDatosUsuario('2', { telefono: '+5691' }, 'administrador');
     expect(InstitucionRepository.updateById).not.toHaveBeenCalled();
+  });
+});
+
+describe('getEstadisticas (service)', () => {
+  it('delega al repository', async () => {
+    (UserRepository.getEstadisticas as jest.Mock).mockResolvedValue({ total: 7 });
+    const res = await UserService.getEstadisticas();
+    expect(res.total).toBe(7);
+    expect(UserRepository.getEstadisticas).toHaveBeenCalled();
+  });
+});
+
+describe('patchAuthCredential via cambiarRolUsuario', () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    delete process.env.INTERNAL_API_KEY;
+  });
+
+  beforeEach(() => {
+    (UserRepository.findById as jest.Mock).mockResolvedValue({ id: '1', rol: RolUsuario.CIUDADANO, credential_id: 'cred-1' });
+  });
+
+  it('omite fetch cuando INTERNAL_API_KEY no está configurada', async () => {
+    delete process.env.INTERNAL_API_KEY;
+    const fetchSpy = jest.fn();
+    global.fetch = fetchSpy as any;
+    await UserService.cambiarRolUsuario('1', 'moderador', 'superadmin');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('llama a fetch cuando INTERNAL_API_KEY está configurada y resp.ok es true', async () => {
+    process.env.INTERNAL_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockResolvedValue({ ok: true }) as any;
+    await UserService.cambiarRolUsuario('1', 'moderador', 'superadmin');
+    expect(global.fetch).toHaveBeenCalled();
+  });
+
+  it('loguea warn cuando resp.ok es false', async () => {
+    process.env.INTERNAL_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: jest.fn().mockResolvedValue('Internal error'),
+    }) as any;
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await UserService.cambiarRolUsuario('1', 'moderador', 'superadmin');
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('loguea warn cuando resp.ok es false y resp.text() lanza', async () => {
+    process.env.INTERNAL_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: jest.fn().mockRejectedValue(new Error('cannot read body')),
+    }) as any;
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await UserService.cambiarRolUsuario('1', 'moderador', 'superadmin');
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('loguea error cuando fetch lanza excepción', async () => {
+    process.env.INTERNAL_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockRejectedValue(new Error('network error')) as any;
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await UserService.cambiarRolUsuario('1', 'moderador', 'superadmin');
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

@@ -7,8 +7,10 @@ const repoMethods = {
   update: jest.fn(async () => undefined),
 };
 
+const mockQuery = jest.fn();
+
 jest.mock('../../config/db', () => ({
-  AppDataSource: { getRepository: jest.fn(() => repoMethods) },
+  AppDataSource: { getRepository: jest.fn(() => repoMethods), query: (...args: any[]) => mockQuery(...args) },
 }));
 
 import { UserRepository } from '../../repositories/user.repository';
@@ -20,6 +22,7 @@ describe('UserRepository', () => {
     repoMethods.findOne.mockClear();
     repoMethods.find.mockClear();
     repoMethods.update.mockClear();
+    mockQuery.mockClear();
   });
 
   it('create delega a getRepository().create', () => {
@@ -103,5 +106,24 @@ describe('UserRepository', () => {
   it('updateByEmail delega', async () => {
     await UserRepository.updateByEmail('a@b.c', { password_hash: 'h' });
     expect(repoMethods.update).toHaveBeenCalledWith({ email: 'a@b.c' }, { password_hash: 'h' });
+  });
+
+  it('getEstadisticas ejecuta todas las queries y retorna el objeto agregado', async () => {
+    mockQuery
+      .mockResolvedValueOnce([{ count: 5 }])     // total
+      .mockResolvedValueOnce([{ count: 3 }])     // activos
+      .mockResolvedValueOnce([])                  // por_region
+      .mockResolvedValueOnce([])                  // top_comunas
+      .mockResolvedValueOnce([])                  // por_tipo
+      .mockResolvedValueOnce([])                  // por_tipo_institucion
+      .mockResolvedValueOnce([])                  // por_rol
+      .mockResolvedValueOnce([])                  // por_mes
+      .mockResolvedValueOnce([])                  // por_mes_tipo
+      .mockResolvedValueOnce([]);                 // por_mes_rol
+
+    const result = await UserRepository.getEstadisticas();
+    expect(result.total).toBe(5);
+    expect(result.activos).toBe(3);
+    expect(mockQuery).toHaveBeenCalledTimes(10);
   });
 });

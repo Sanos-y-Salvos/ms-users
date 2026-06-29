@@ -385,4 +385,4 @@ open coverage/index.html
 
 **Reporte de cobertura test microservicio:**
 
-![Reporte de pruebas unitarias](./assets/Screenshot_2026-06-22_23.01.08.png) 
+![Reporte de pruebas unitarias](./assets/Screenshot_2026-06-29_01-22-16.png)

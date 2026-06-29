@@ -9,6 +9,7 @@ jest.mock('../../services/user.service', () => ({
   cambiarEstadoUsuario: jest.fn(),
   cambiarRolUsuario: jest.fn(),
   editarDatosUsuario: jest.fn(),
+  getEstadisticas: jest.fn(),
 }));
 
 import * as UserService from '../../services/user.service';
@@ -510,6 +511,22 @@ describe('editarDatosUsuario controller', () => {
       { params: { id: '1' }, body: {}, user: { role: 'admin' } } as any,
       res,
     );
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+});
+
+describe('getEstadisticas controller', () => {
+  it('200 con datos del servicio', async () => {
+    (UserService.getEstadisticas as jest.Mock).mockResolvedValue({ total: 10 });
+    const res = mockRes();
+    await Ctrl.getEstadisticas({} as any, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('400 cuando el servicio lanza error', async () => {
+    (UserService.getEstadisticas as jest.Mock).mockRejectedValue(new Error('DB error'));
+    const res = mockRes();
+    await Ctrl.getEstadisticas({} as any, res);
     expect(res.status).toHaveBeenCalledWith(400);
   });
 });
