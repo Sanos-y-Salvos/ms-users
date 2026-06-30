@@ -9,12 +9,14 @@ jest.mock('../../repositories/ciudadano.repository', () => ({
   CiudadanoRepository: {
     create: jest.fn((data) => ({ ...data })),
     save: jest.fn(async (c) => c),
+    findByRun: jest.fn(async () => null),
   },
 }));
 jest.mock('../../repositories/institucion.repository', () => ({
   InstitucionRepository: {
     create: jest.fn((data) => ({ ...data })),
     save: jest.fn(async (i) => i),
+    findByRut: jest.fn(async () => null),
   },
 }));
 jest.mock('bcrypt', () => ({
@@ -71,6 +73,17 @@ describe('CiudadanoCreator', () => {
     await expect(
       new CiudadanoCreator().crear({ ...datosCiudadanoValidos, run: '11111111-9' }),
     ).rejects.toThrow('RUN inválido');
+  });
+
+  it('lanza error si el teléfono es inválido', async () => {
+    await expect(
+      new CiudadanoCreator().crear({ ...datosCiudadanoValidos, telefono: 'no-valido' }),
+    ).rejects.toThrow('Teléfono inválido');
+  });
+
+  it('lanza error si el RUN ya está registrado', async () => {
+    (CiudadanoRepository.findByRun as jest.Mock).mockResolvedValueOnce({ id: 'c-existente' });
+    await expect(new CiudadanoCreator().crear(datosCiudadanoValidos)).rejects.toThrow('El RUN ya está registrado');
   });
 
   it('traduce el error 23505 a "El correo ya está registrado"', async () => {
@@ -131,5 +144,16 @@ describe('InstitucionCreator', () => {
     await expect(
       new InstitucionCreator().crear({ ...datosInstitucionValidos, tipo_institucion: 'banco' as any }),
     ).rejects.toThrow('Tipo de institución inválido');
+  });
+
+  it('lanza error si el teléfono es inválido', async () => {
+    await expect(
+      new InstitucionCreator().crear({ ...datosInstitucionValidos, telefono: 'no-valido' }),
+    ).rejects.toThrow('Teléfono inválido');
+  });
+
+  it('lanza error si el RUT ya está registrado', async () => {
+    (InstitucionRepository.findByRut as jest.Mock).mockResolvedValueOnce({ id: 'i-existente' });
+    await expect(new InstitucionCreator().crear(datosInstitucionValidos)).rejects.toThrow('El RUT ya está registrado');
   });
 });

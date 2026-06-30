@@ -19,6 +19,7 @@ jest.mock('../../repositories/user.repository', () => ({
     findAll: jest.fn(),
     updateByCredentialId: jest.fn(),
     updateById: jest.fn(),
+    getEstadisticas: jest.fn(),
   },
 }));
 jest.mock('../../repositories/ciudadano.repository', () => ({
@@ -119,7 +120,7 @@ describe('actualizarPerfil', () => {
       .mockResolvedValueOnce({ tipo: 'ciudadano', ciudadano: { id: 'c1' } })
       .mockResolvedValueOnce({ id: 'u1', tipo: 'ciudadano' });
     await UserService.actualizarPerfil('cred-1', {
-      telefono: '+5691', region: 'RM', comuna: 'X',
+      telefono: '+56911111111', region: 'RM', comuna: 'X',
       primer_nombre: 'Ana', segundo_nombre: 'B', apellido_paterno: 'C', apellido_materno: 'D', direccion: 'X',
     });
     expect(UserRepository.updateByCredentialId).toHaveBeenCalled();
@@ -158,7 +159,7 @@ describe('actualizarPerfil', () => {
     (UserRepository.findByCredentialId as jest.Mock)
       .mockResolvedValueOnce({ tipo: 'otro' })
       .mockResolvedValueOnce({ id: 'u3' });
-    await UserService.actualizarPerfil('cred-3', { telefono: '+5691' });
+    await UserService.actualizarPerfil('cred-3', { telefono: '+56911111111' });
     expect(CiudadanoRepository.updateById).not.toHaveBeenCalled();
     expect(InstitucionRepository.updateById).not.toHaveBeenCalled();
   });
@@ -221,12 +222,27 @@ describe('actualizarPerfil', () => {
     await UserService.actualizarPerfil('cred-1', {});
     expect(UserRepository.updateByCredentialId).not.toHaveBeenCalled();
   });
+
+  it('lanza 422 si el teléfono es inválido en actualizarPerfil', async () => {
+    (UserRepository.findByCredentialId as jest.Mock).mockResolvedValue({ tipo: 'ciudadano', ciudadano: { id: 'c1' } });
+    await expect(UserService.actualizarPerfil('cred-1', { telefono: 'invalido' })).rejects.toMatchObject({ status: 422 });
+  });
 });
 
 describe('desactivarCuenta', () => {
   it('llama a updateByCredentialId con is_active=false', async () => {
     await UserService.desactivarCuenta('cred-1');
     expect(UserRepository.updateByCredentialId).toHaveBeenCalledWith('cred-1', { is_active: false });
+  });
+});
+
+describe('getEstadisticas', () => {
+  it('delega al repositorio', async () => {
+    const stats = { total: 5, activos: 3 };
+    (UserRepository.getEstadisticas as jest.Mock).mockResolvedValue(stats);
+    const result = await UserService.getEstadisticas();
+    expect(result).toBe(stats);
+    expect(UserRepository.getEstadisticas).toHaveBeenCalled();
   });
 });
 
@@ -310,13 +326,67 @@ describe('cambiarRolUsuario', () => {
   });
 });
 
+describe('patchAuthCredential (via cambiarEstadoUsuario con INTERNAL_API_KEY)', () => {
+  const originalEnv = process.env;
+  beforeEach(() => {
+    process.env = { ...originalEnv, INTERNAL_API_KEY: 'test-key', AUTH_URL: 'http://ms-auth:3001' };
+  });
+  afterEach(() => { process.env = originalEnv; });
+
+  it('llama a fetch y continúa si resp.ok es true', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true });
+    global.fetch = fetchMock as any;
+    (UserRepository.findById as jest.Mock).mockResolvedValue({ id: '1', rol: RolUsuario.CIUDADANO, credential_id: 'c1' });
+    await UserService.cambiarEstadoUsuario('1', false, 'administrador');
+    expect(fetchMock).toHaveBeenCalled();
+    delete (global as any).fetch;
+  });
+
+  it('registra warn si resp.ok es false', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchMock = jest.fn().mockResolvedValue({ ok: false, status: 503, text: async () => 'error' });
+    global.fetch = fetchMock as any;
+    (UserRepository.findById as jest.Mock).mockResolvedValue({ id: '1', rol: RolUsuario.CIUDADANO, credential_id: 'c1' });
+    await UserService.cambiarEstadoUsuario('1', false, 'administrador');
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+    delete (global as any).fetch;
+  });
+
+  it('usa cadena vacía si resp.text() lanza (catch vacío)', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      text: jest.fn().mockRejectedValue(new Error('text error')),
+    });
+    global.fetch = fetchMock as any;
+    (UserRepository.findById as jest.Mock).mockResolvedValue({ id: '1', rol: RolUsuario.CIUDADANO, credential_id: 'c1' });
+    await UserService.cambiarEstadoUsuario('1', false, 'administrador');
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+    delete (global as any).fetch;
+  });
+
+  it('registra error si fetch lanza', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchMock = jest.fn().mockRejectedValue(new Error('network error'));
+    global.fetch = fetchMock as any;
+    (UserRepository.findById as jest.Mock).mockResolvedValue({ id: '1', rol: RolUsuario.CIUDADANO, credential_id: 'c1' });
+    await UserService.cambiarEstadoUsuario('1', false, 'administrador');
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+    delete (global as any).fetch;
+  });
+});
+
 describe('editarDatosUsuario', () => {
   it('actualiza todos los campos del ciudadano', async () => {
     (UserRepository.findById as jest.Mock)
       .mockResolvedValueOnce({ id: '1', tipo: 'ciudadano', rol: RolUsuario.CIUDADANO, ciudadano: { id: 'c1' } })
       .mockResolvedValueOnce({ id: '1', tipo: 'ciudadano', rol: RolUsuario.CIUDADANO, ciudadano: { id: 'c1' } });
     await UserService.editarDatosUsuario('1', {
-      telefono: '+5691', region: 'RM', comuna: 'X',
+      telefono: '+56911111111', region: 'RM', comuna: 'X',
       primer_nombre: 'Ana', segundo_nombre: 'B', apellido_paterno: 'C', apellido_materno: 'D', direccion: 'X',
     }, 'administrador');
     expect(UserRepository.updateById).toHaveBeenCalled();
@@ -343,7 +413,7 @@ describe('editarDatosUsuario', () => {
     (UserRepository.findById as jest.Mock)
       .mockResolvedValueOnce({ id: '1', tipo: 'ciudadano', rol: RolUsuario.CIUDADANO, ciudadano: { id: 'c1' } })
       .mockResolvedValueOnce({ id: '1', tipo: 'ciudadano', rol: RolUsuario.CIUDADANO, ciudadano: { id: 'c1' } });
-    await UserService.editarDatosUsuario('1', { telefono: '+5691' }, 'administrador');
+    await UserService.editarDatosUsuario('1', { telefono: '+56911111111' }, 'administrador');
     expect(CiudadanoRepository.updateById).not.toHaveBeenCalled();
   });
 
@@ -351,7 +421,13 @@ describe('editarDatosUsuario', () => {
     (UserRepository.findById as jest.Mock)
       .mockResolvedValueOnce({ id: '2', tipo: 'institucion', rol: RolUsuario.VETERINARIA, institucion: { id: 'i1' } })
       .mockResolvedValueOnce({ id: '2', tipo: 'institucion', rol: RolUsuario.VETERINARIA, institucion: { id: 'i1' } });
-    await UserService.editarDatosUsuario('2', { telefono: '+5691' }, 'administrador');
+    await UserService.editarDatosUsuario('2', { telefono: '+56911111111' }, 'administrador');
     expect(InstitucionRepository.updateById).not.toHaveBeenCalled();
+  });
+
+  it('lanza 422 si el teléfono es inválido en editarDatosUsuario', async () => {
+    (UserRepository.findById as jest.Mock)
+      .mockResolvedValueOnce({ id: '1', tipo: 'ciudadano', rol: RolUsuario.CIUDADANO, ciudadano: { id: 'c1' } });
+    await expect(UserService.editarDatosUsuario('1', { telefono: 'invalido' }, 'administrador')).rejects.toMatchObject({ status: 422 });
   });
 });

@@ -7,8 +7,10 @@ const repoMethods = {
   update: jest.fn(async () => undefined),
 };
 
+const queryMock = jest.fn();
+
 jest.mock('../../config/db', () => ({
-  AppDataSource: { getRepository: jest.fn(() => repoMethods) },
+  AppDataSource: { getRepository: jest.fn(() => repoMethods), query: queryMock },
 }));
 
 import { UserRepository } from '../../repositories/user.repository';
@@ -103,5 +105,14 @@ describe('UserRepository', () => {
   it('updateByEmail delega', async () => {
     await UserRepository.updateByEmail('a@b.c', { password_hash: 'h' });
     expect(repoMethods.update).toHaveBeenCalledWith({ email: 'a@b.c' }, { password_hash: 'h' });
+  });
+
+  it('getEstadisticas ejecuta 10 queries en paralelo y retorna el objeto de estadísticas', async () => {
+    queryMock.mockResolvedValue([{ count: 5 }]);
+    const result = await UserRepository.getEstadisticas();
+    expect(queryMock).toHaveBeenCalledTimes(10);
+    expect(result.total).toBe(5);
+    expect(result.activos).toBe(5);
+    expect(result.por_region).toEqual([{ count: 5 }]);
   });
 });
