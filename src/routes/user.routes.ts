@@ -348,6 +348,9 @@ router.get('/admin/usuarios', verifyToken, requireRole('administrador', 'superad
  *       404:
  *         description: Usuario no encontrado
  */
+// Ver usuario por credential_id (el UUID del JWT): solo admin, superadmin o moderador
+router.get('/admin/usuarios/by-credential/:credentialId', verifyToken, requireRole('administrador', 'superadmin', 'moderador'), UserController.verUsuarioPorCredential);
+
 // Ver usuario por id: solo admin, superadmin o moderador
 router.get('/admin/usuarios/:id', verifyToken, requireRole('administrador', 'superadmin', 'moderador'), UserController.verUsuario);
 

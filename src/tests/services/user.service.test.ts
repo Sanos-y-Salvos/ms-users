@@ -279,6 +279,36 @@ describe('listarUsuarios', () => {
   });
 });
 
+describe('verUsuarioPorCredential', () => {
+  it('devuelve usuario cuando existe y el caller tiene permiso', async () => {
+    (UserRepository.findByCredentialId as jest.Mock).mockResolvedValue({ id: '1', rol: RolUsuario.CIUDADANO });
+    const res = await UserService.verUsuarioPorCredential('cred-1', 'administrador');
+    expect(res.id).toBe('1');
+  });
+
+  it('lanza si no existe', async () => {
+    (UserRepository.findByCredentialId as jest.Mock).mockResolvedValue(null);
+    await expect(UserService.verUsuarioPorCredential('cred-x')).rejects.toThrow('Usuario no encontrado');
+  });
+
+  it('lanza 403 si un no-superadmin intenta ver un superadmin', async () => {
+    (UserRepository.findByCredentialId as jest.Mock).mockResolvedValue({ id: '2', rol: RolUsuario.SUPERADMIN });
+    await expect(UserService.verUsuarioPorCredential('cred-2', 'administrador')).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('permite ver superadmin cuando callerRole es superadmin', async () => {
+    (UserRepository.findByCredentialId as jest.Mock).mockResolvedValue({ id: '2', rol: RolUsuario.SUPERADMIN });
+    const res = await UserService.verUsuarioPorCredential('cred-2', 'superadmin');
+    expect(res.id).toBe('2');
+  });
+
+  it('omite verificación de rol cuando callerRole es undefined', async () => {
+    (UserRepository.findByCredentialId as jest.Mock).mockResolvedValue({ id: '2', rol: RolUsuario.SUPERADMIN });
+    const res = await UserService.verUsuarioPorCredential('cred-2', undefined);
+    expect(res.id).toBe('2');
+  });
+});
+
 describe('verUsuario', () => {
   it('rechaza non-superadmin viendo un superadmin', async () => {
     (UserRepository.findById as jest.Mock).mockResolvedValue({ id: '2', rol: RolUsuario.SUPERADMIN });

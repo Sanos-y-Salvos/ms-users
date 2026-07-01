@@ -256,6 +256,18 @@ export const listarUsuarios = async (filtros?: { rol?: string; is_active?: boole
   return users;
 };
 
+// Admin — Ver un usuario por credential_id (el id que lleva el JWT)
+export const verUsuarioPorCredential = async (credentialId: string, callerRole?: string) => {
+  const user = await UserRepository.findByCredentialId(credentialId, { withRelations: true });
+  if (!user) throw new Error('Usuario no encontrado');
+  if (callerRole !== undefined && callerRole !== 'superadmin' && user.rol === RolUsuario.SUPERADMIN) {
+    const err: any = new Error('Acceso denegado');
+    err.status = 403;
+    throw err;
+  }
+  return user;
+};
+
 // Admin — Ver un usuario por id; bloquea ver superadmin a no-superadmins
 export const verUsuario = async (userId: string, callerRole?: string) => {
   const user = await UserRepository.findById(userId, { withRelations: true });

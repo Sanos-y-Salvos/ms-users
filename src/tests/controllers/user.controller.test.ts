@@ -6,6 +6,7 @@ jest.mock('../../services/user.service', () => ({
   desactivarCuenta: jest.fn(),
   listarUsuarios: jest.fn(),
   verUsuario: jest.fn(),
+  verUsuarioPorCredential: jest.fn(),
   cambiarEstadoUsuario: jest.fn(),
   cambiarRolUsuario: jest.fn(),
   editarDatosUsuario: jest.fn(),
@@ -328,6 +329,31 @@ describe('listarUsuarios controller', () => {
       res,
     );
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+});
+
+describe('verUsuarioPorCredential controller', () => {
+  it('200 cuando el servicio retorna el usuario', async () => {
+    (UserService.verUsuarioPorCredential as jest.Mock).mockResolvedValue({ id: '1' });
+    const res = mockRes();
+    await Ctrl.verUsuarioPorCredential({ params: { credentialId: 'cred-1' }, user: { role: 'administrador' } } as any, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('403 cuando el servicio lanza con status 403', async () => {
+    (UserService.verUsuarioPorCredential as jest.Mock).mockRejectedValue(
+      Object.assign(new Error('Acceso denegado'), { status: 403 }),
+    );
+    const res = mockRes();
+    await Ctrl.verUsuarioPorCredential({ params: { credentialId: 'cred-1' }, user: { role: 'administrador' } } as any, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it('404 por defecto cuando el error no tiene status', async () => {
+    (UserService.verUsuarioPorCredential as jest.Mock).mockRejectedValue(new Error('Usuario no encontrado'));
+    const res = mockRes();
+    await Ctrl.verUsuarioPorCredential({ params: { credentialId: 'cred-x' }, user: { role: 'administrador' } } as any, res);
+    expect(res.status).toHaveBeenCalledWith(404);
   });
 });
 

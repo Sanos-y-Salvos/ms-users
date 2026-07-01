@@ -107,12 +107,16 @@ describe('UserRepository', () => {
     expect(repoMethods.update).toHaveBeenCalledWith({ email: 'a@b.c' }, { password_hash: 'h' });
   });
 
-  it('getEstadisticas ejecuta 10 queries en paralelo y retorna el objeto de estadísticas', async () => {
+  it('getEstadisticas ejecuta 14 queries en paralelo y retorna el objeto de estadísticas', async () => {
     queryMock.mockResolvedValue([{ count: 5 }]);
     const result = await UserRepository.getEstadisticas();
-    expect(queryMock).toHaveBeenCalledTimes(10);
+    expect(queryMock).toHaveBeenCalledTimes(14);
     expect(result.total).toBe(5);
     expect(result.activos).toBe(5);
     expect(result.por_region).toEqual([{ count: 5 }]);
+    expect(result.por_mes_region_tipo).toEqual([{ count: 5 }]);
+    expect(result.por_mes_region_rol).toEqual([{ count: 5 }]);
+    expect(result.por_mes_comuna_tipo).toEqual([{ count: 5 }]);
+    expect(result.por_mes_comuna_rol).toEqual([{ count: 5 }]);
   });
 });

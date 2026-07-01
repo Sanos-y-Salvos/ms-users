@@ -80,31 +80,42 @@ export const UserRepository = {
   // Admin — Estadísticas agregadas para el dashboard
   async getEstadisticas() {
     const db = AppDataSource;
-    const [total, activos, por_region, top_comunas, por_tipo, por_tipo_institucion, por_rol, por_mes, por_mes_tipo, por_mes_rol] =
-      await Promise.all([
-        db.query('SELECT COUNT(*)::int AS count FROM users'),
-        db.query("SELECT COUNT(*)::int AS count FROM users WHERE is_active = true"),
-        db.query('SELECT region, COUNT(*)::int AS count FROM users GROUP BY region ORDER BY count DESC'),
-        db.query('SELECT comuna, COUNT(*)::int AS count FROM users GROUP BY comuna ORDER BY count DESC LIMIT 10'),
-        db.query('SELECT tipo, COUNT(*)::int AS count FROM users GROUP BY tipo'),
-        db.query('SELECT i.tipo_institucion, COUNT(*)::int AS count FROM instituciones i INNER JOIN users u ON u.id = i.user_id GROUP BY i.tipo_institucion'),
-        db.query('SELECT rol, COUNT(*)::int AS count FROM users GROUP BY rol ORDER BY count DESC'),
-        db.query("SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS mes, COUNT(*)::int AS count FROM users GROUP BY mes ORDER BY mes"),
-        db.query("SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS mes, tipo, COUNT(*)::int AS count FROM users GROUP BY mes, tipo ORDER BY mes"),
-        db.query("SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS mes, rol, COUNT(*)::int AS count FROM users GROUP BY mes, rol ORDER BY mes"),
-      ]);
+    const [
+      total, activos, por_region, top_comunas, por_tipo, por_tipo_institucion,
+      por_rol, por_mes, por_mes_tipo, por_mes_rol,
+      por_mes_region_tipo, por_mes_region_rol, por_mes_comuna_tipo, por_mes_comuna_rol,
+    ] = await Promise.all([
+      db.query('SELECT COUNT(*)::int AS count FROM users'),
+      db.query("SELECT COUNT(*)::int AS count FROM users WHERE is_active = true"),
+      db.query('SELECT region, COUNT(*)::int AS count FROM users GROUP BY region ORDER BY count DESC'),
+      db.query('SELECT comuna, COUNT(*)::int AS count FROM users GROUP BY comuna ORDER BY count DESC LIMIT 10'),
+      db.query('SELECT tipo, COUNT(*)::int AS count FROM users GROUP BY tipo'),
+      db.query('SELECT i.tipo_institucion, COUNT(*)::int AS count FROM instituciones i INNER JOIN users u ON u.id = i.user_id GROUP BY i.tipo_institucion'),
+      db.query('SELECT rol, COUNT(*)::int AS count FROM users GROUP BY rol ORDER BY count DESC'),
+      db.query("SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS mes, COUNT(*)::int AS count FROM users GROUP BY mes ORDER BY mes"),
+      db.query("SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS mes, tipo, COUNT(*)::int AS count FROM users GROUP BY mes, tipo ORDER BY mes"),
+      db.query("SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS mes, rol, COUNT(*)::int AS count FROM users GROUP BY mes, rol ORDER BY mes"),
+      db.query("SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS mes, region, tipo, COUNT(*)::int AS count FROM users GROUP BY mes, region, tipo ORDER BY mes"),
+      db.query("SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS mes, region, rol, COUNT(*)::int AS count FROM users GROUP BY mes, region, rol ORDER BY mes"),
+      db.query("SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS mes, comuna, tipo, COUNT(*)::int AS count FROM users GROUP BY mes, comuna, tipo ORDER BY mes"),
+      db.query("SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS mes, comuna, rol, COUNT(*)::int AS count FROM users GROUP BY mes, comuna, rol ORDER BY mes"),
+    ]);
 
     return {
       total:               total[0].count,
       activos:             activos[0].count,
-      por_region:          por_region,
-      top_comunas:         top_comunas,
-      por_tipo:            por_tipo,
-      por_tipo_institucion: por_tipo_institucion,
-      por_rol:             por_rol,
-      por_mes:             por_mes,
-      por_mes_tipo:        por_mes_tipo,
-      por_mes_rol:         por_mes_rol,
+      por_region,
+      top_comunas,
+      por_tipo,
+      por_tipo_institucion,
+      por_rol,
+      por_mes,
+      por_mes_tipo,
+      por_mes_rol,
+      por_mes_region_tipo,
+      por_mes_region_rol,
+      por_mes_comuna_tipo,
+      por_mes_comuna_rol,
     };
   },
 };

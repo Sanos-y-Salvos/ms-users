@@ -141,6 +141,17 @@ export const listarUsuarios = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+// Admin — Ver un usuario por credential_id (el id que lleva el JWT / tickets)
+export const verUsuarioPorCredential = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const credentialId = req.params.credentialId as string;
+    const data = await UserService.verUsuarioPorCredential(credentialId, req.user!.role);
+    successResponse(res, data);
+  } catch (err: any) {
+    errorResponse(res, err.message, err.status ?? 404);
+  }
+};
+
 // Admin — Ver un usuario por id
 export const verUsuario = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
